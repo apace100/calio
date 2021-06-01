@@ -1,29 +1,32 @@
 {
   "schemaVersion": 1,
-  "id": "modid",
+  "id": "calio",
   "version": "${version}",
 
-  "name": "Example Mod",
-  "description": "This is an example description! Tell everyone what your mod is about!",
+  "name": "Calio",
+  "description": "A simple library mod, mainly adds a serializable data system.",
   "authors": [
-    "Me!"
+    "Apace"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "",
+    "sources": "https://github.com/apace100/calio"
   },
 
-  "license": "CC0-1.0",
-  "icon": "assets/modid/icon.png",
+  "license": "MIT",
+  "icon": "assets/calio/icon.png",
 
   "environment": "*",
   "entrypoints": {
     "main": [
-      "net.fabricmc.example.ExampleMod"
+      "io.github.apace100.calio.Calio"
+    ],
+    "client": [
+      "io.github.apace100.calio.CalioClient"
     ]
   },
   "mixins": [
-    "modid.mixins.json"
+    "calio.mixins.json"
   ],
 
   "depends": {
@@ -31,8 +34,5 @@
     "fabric": "*",
     "minecraft": "1.17.x",
     "java": ">=16"
-  },
-  "suggests": {
-    "another-mod": "*"
   }
 }
