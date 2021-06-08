@@ -23,6 +23,9 @@
     ],
     "client": [
       "io.github.apace100.calio.CalioClient"
+    ],
+    "server": [
+      "io.github.apace100.calio.CalioServer"
     ]
   },
   "mixins": [

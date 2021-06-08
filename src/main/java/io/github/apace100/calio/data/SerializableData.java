@@ -1,19 +1,17 @@
 package io.github.apace100.calio.data;
 
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.function.Function;
 
 public class SerializableData {
 
-    private LinkedHashMap<String, Entry<?>> dataFields = new LinkedHashMap<>();
+    private HashMap<String, Entry<?>> dataFields = new HashMap<>();
 
     public SerializableData add(String name, SerializableDataType<?> type) {
         dataFields.put(name, new Entry<>(type));
@@ -32,12 +30,18 @@ public class SerializableData {
 
     public void write(PacketByteBuf buffer, Instance instance) {
         dataFields.forEach((name, entry) -> {
-            boolean isPresent = instance.get(name) != null;
-            if(entry.hasDefault && entry.defaultValue == null) {
-                buffer.writeBoolean(isPresent);
-            }
-            if(isPresent) {
-                entry.dataType.send(buffer, instance.get(name));
+            try {
+                boolean isPresent = instance.get(name) != null;
+                if(entry.hasDefault && entry.defaultValue == null) {
+                    buffer.writeBoolean(isPresent);
+                }
+                if(isPresent) {
+                    entry.dataType.send(buffer, instance.get(name));
+                }
+            } catch(DataException e) {
+                throw e.prepend(name);
+            } catch(Exception e) {
+                throw new DataException(DataException.Phase.WRITING, name, e);
             }
         });
     }
@@ -45,21 +49,27 @@ public class SerializableData {
     public Instance read(PacketByteBuf buffer) {
         Instance instance = new Instance();
         dataFields.forEach((name, entry) -> {
-            boolean isPresent = true;
-            if(entry.hasDefault && entry.defaultValue == null) {
-                isPresent = buffer.readBoolean();
+            try {
+                boolean isPresent = true;
+                if(entry.hasDefault && entry.defaultValue == null) {
+                    isPresent = buffer.readBoolean();
+                }
+                instance.set(name, isPresent ? entry.dataType.receive(buffer) : null);
+            } catch (DataException e) {
+                throw e.prepend(name);
+            } catch (Exception e) {
+                throw new DataException(DataException.Phase.RECEIVING, name, e);
             }
-            instance.set(name, isPresent ? entry.dataType.receive(buffer) : null);
         });
         return instance;
     }
 
     public Instance read(JsonObject jsonObject) {
         Instance instance = new Instance();
-        try {
-            dataFields.forEach((name, entry) -> {
-                if(!jsonObject.has(name)) {
-                    if(entry.hasDefault()) {
+        dataFields.forEach((name, entry) -> {
+            try {
+                if (!jsonObject.has(name)) {
+                    if (entry.hasDefault()) {
                         instance.set(name, entry.getDefault(instance));
                     } else {
                         throw new JsonSyntaxException("JSON requires field: " + name);
@@ -67,15 +77,17 @@ public class SerializableData {
                 } else {
                     instance.set(name, entry.dataType.read(jsonObject.get(name)));
                 }
-            });
-        } catch(JsonParseException | ClassCastException e) {
-            throw new JsonSyntaxException(e.getMessage());
-        }
+            } catch (DataException e) {
+                throw e.prepend(name);
+            } catch (Exception e) {
+                throw new DataException(DataException.Phase.READING, name, e);
+            }
+        });
         return instance;
     }
 
     public class Instance {
-        private final HashMap<String, Object> data = new HashMap<>();
+        private HashMap<String, Object> data = new HashMap<>();
 
         public Instance() {
 

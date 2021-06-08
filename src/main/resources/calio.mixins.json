@@ -6,6 +6,7 @@
   "mixins": [
     "CriteriaRegistryInvoker",
     "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
+    "DamageSourceAccessor",
     "WeightedListEntryAccessor"
   ],
   "client": [

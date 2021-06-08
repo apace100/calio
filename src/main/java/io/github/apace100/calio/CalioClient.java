@@ -1,6 +1,8 @@
 package io.github.apace100.calio;
 
 import io.github.apace100.calio.mixin.HandledScreenFocusedSlotAccessor;
+import io.github.apace100.calio.util.ClientTagManagerGetter;
+import io.github.apace100.calio.util.ServerTagManagerGetter;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -23,6 +25,7 @@ public class CalioClient implements ClientModInitializer {
     @Override
     @Environment(EnvType.CLIENT)
     public void onInitializeClient() {
+        Calio.tagManagerGetter = new ClientTagManagerGetter();
         ClientTickEvents.START_CLIENT_TICK.register(tick -> {
             MinecraftClient client = MinecraftClient.getInstance();
             if(client.player != null && client.currentScreen instanceof HandledScreen) {

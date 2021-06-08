@@ -7,10 +7,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.SimpleDamageSource;
-import net.fabricmc.fabric.api.tag.TagRegistry;
+import io.github.apace100.calio.mixin.DamageSourceAccessor;
+import io.github.apace100.calio.util.IdentifiedTag;
 import net.minecraft.block.Block;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
@@ -32,7 +33,6 @@ import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.sound.SoundEvent;
-import net.minecraft.tag.ServerTagManagerHolder;
 import net.minecraft.tag.Tag;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -95,27 +95,27 @@ public final class SerializableDataTypes {
             .add("projectile", BOOLEAN, false)
             .add("explosive", BOOLEAN, false),
         (data) -> {
-            SimpleDamageSource damageSource = new SimpleDamageSource(data.getString("name"));
+            DamageSource damageSource = DamageSourceAccessor.createDamageSource(data.getString("name"));
             if(data.getBoolean("bypasses_armor")) {
-                damageSource.setBypassesArmor();
+                ((DamageSourceAccessor)damageSource).callSetBypassesArmor();
             }
             if(data.getBoolean("fire")) {
-                damageSource.setFire();
+                ((DamageSourceAccessor)damageSource).callSetFire();
             }
             if(data.getBoolean("unblockable")) {
-                damageSource.setUnblockable();
+                ((DamageSourceAccessor)damageSource).callSetUnblockable();
             }
             if(data.getBoolean("magic")) {
-                damageSource.setUsesMagic();
+                ((DamageSourceAccessor)damageSource).callSetUsesMagic();
             }
             if(data.getBoolean("out_of_world")) {
-                damageSource.setOutOfWorld();
+                ((DamageSourceAccessor)damageSource).callSetOutOfWorld();
             }
             if(data.getBoolean("projectile")) {
-                damageSource.setProjectile();
+                ((DamageSourceAccessor)damageSource).callSetProjectile();
             }
             if(data.getBoolean("explosive")) {
-                damageSource.setExplosive();
+                ((DamageSourceAccessor)damageSource).callSetExplosive();
             }
             return damageSource;
         },
@@ -127,6 +127,8 @@ public final class SerializableDataTypes {
             inst.set("bypasses_armor", ds.bypassesArmor());
             inst.set("out_of_world", ds.isOutOfWorld());
             inst.set("magic", ds.isMagic());
+            inst.set("projectile", ds.isProjectile());
+            inst.set("explosive", ds.isExplosive());
             return inst;
         });
 
@@ -160,16 +162,16 @@ public final class SerializableDataTypes {
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
     public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
-        fluid -> ServerTagManagerHolder.getTagManager().getTagId(Registry.FLUID_KEY, fluid, () -> {
-            return new JsonSyntaxException("Unknown fluid tag");
-        }),
-        SerializationHelper::getFluidTagFromId);
+        fluid -> Calio.getTagManager().getTagId(Registry.FLUID_KEY, fluid, () -> new JsonSyntaxException("Unknown fluid tag")),
+        id -> new IdentifiedTag<>(Registry.FLUID_KEY, id));
 
     public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
-        block -> ServerTagManagerHolder.getTagManager().getTagId(Registry.BLOCK_KEY, block, () -> {
-            return new JsonSyntaxException("Unknown block tag");
-        }),
-        SerializationHelper::getBlockTagFromId);
+        block -> Calio.getTagManager().getTagId(Registry.BLOCK_KEY, block, () -> new JsonSyntaxException("Unknown block tag")),
+        id -> new IdentifiedTag<>(Registry.BLOCK_KEY, id));
+
+    public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
+        tag -> Calio.getTagManager().getTagId(Registry.ENTITY_TYPE_KEY, tag, RuntimeException::new),
+        id -> new IdentifiedTag<>(Registry.ENTITY_TYPE_KEY, id));
 
     public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
@@ -238,12 +240,6 @@ public final class SerializableDataTypes {
         SerializableDataTypes.IDENTIFIER,
         RegistryKey::getValue, identifier -> RegistryKey.of(Registry.WORLD_KEY, identifier)
     );
-
-    public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-        tag -> ServerTagManagerHolder.getTagManager().getTagId(Registry.ENTITY_TYPE_KEY, tag, RuntimeException::new),
-        TagRegistry::entityType);
-
-
 
     public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
         (buffer, recipe) -> {
