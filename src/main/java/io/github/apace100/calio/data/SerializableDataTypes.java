@@ -4,6 +4,7 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonSyntaxException;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -34,6 +35,8 @@ import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.tag.Tag;
+import net.minecraft.tag.TagGroup;
+import net.minecraft.tag.TagManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
@@ -41,6 +44,9 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 
 public final class SerializableDataTypes {
@@ -161,6 +167,10 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
+    public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
+        item -> Calio.getTagManager().getTagId(Registry.ITEM_KEY, item, () -> new JsonSyntaxException("Unknown fluid tag")),
+        id -> new IdentifiedTag<>(Registry.ITEM_KEY, id));
+
     public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
         fluid -> Calio.getTagManager().getTagId(Registry.FLUID_KEY, fluid, () -> new JsonSyntaxException("Unknown fluid tag")),
         id -> new IdentifiedTag<>(Registry.FLUID_KEY, id));
@@ -173,7 +183,57 @@ public final class SerializableDataTypes {
         tag -> Calio.getTagManager().getTagId(Registry.ENTITY_TYPE_KEY, tag, RuntimeException::new),
         id -> new IdentifiedTag<>(Registry.ENTITY_TYPE_KEY, id));
 
+    public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(List.class),
+        new SerializableData()
+            .add("item", ITEM, null)
+            .add("tag", ITEM_TAG, null),
+        dataInstance -> {
+            boolean tagPresent = dataInstance.isPresent("tag");
+            boolean itemPresent = dataInstance.isPresent("item");
+            if(tagPresent == itemPresent) {
+                throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
+            }
+            if(tagPresent) {
+                Tag<Item> tag = (Tag<Item>)dataInstance.get("tag");
+                return List.copyOf(tag.values());
+            } else {
+                return List.of((Item)dataInstance.get("item"));
+            }
+        }, (data, items) -> {
+            SerializableData.Instance inst = data.new Instance();
+            if(items.size() == 1) {
+                inst.set("item", items.get(0));
+            } else {
+                TagManager tagManager = Calio.getTagManager();
+                TagGroup<Item> tagGroup = tagManager.getOrCreateTagGroup(Registry.ITEM_KEY);
+                Collection<Identifier> possibleTags = tagGroup.getTagsFor(items.get(0));
+                for(int i = 1; i < items.size() && possibleTags.size() > 1; i++) {
+                    possibleTags.removeAll(tagGroup.getTagsFor(items.get(i)));
+                }
+                if(possibleTags.size() != 1) {
+                    throw new IllegalStateException("Couldn't transform item list to a single tag");
+                }
+                inst.set("tag", tagGroup.getTag(possibleTags.stream().findFirst().get()));
+            }
+            return inst;
+        });
+
+    public static final SerializableDataType<List<List<Item>>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
+
+    // An alternative version of an ingredient deserializer which allows `minecraft:air`
     public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
+        Ingredient.class,
+        (buffer, ingredient) -> ingredient.write(buffer),
+        Ingredient::fromPacket,
+        jsonElement -> {
+            List<List<Item>> itemLists = INGREDIENT_ENTRIES.read(jsonElement);
+            List<ItemStack> items = new LinkedList<>();
+            itemLists.forEach(itemList -> itemList.forEach(item -> items.add(new ItemStack(item))));
+            return Ingredient.ofStacks(items.stream());
+        });
+
+    // The regular vanilla Minecraft ingredient.
+    public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
