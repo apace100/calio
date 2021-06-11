@@ -16,6 +16,7 @@ import net.minecraft.util.registry.Registry;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -56,21 +57,43 @@ public class SerializableDataType<T> {
     public static <T> SerializableDataType<List<T>> list(SerializableDataType<T> singleDataType) {
         return new SerializableDataType<>(ClassUtil.castClass(List.class), (buf, list) -> {
             buf.writeInt(list.size());
+            int i = 0;
             for(T elem : list) {
-                singleDataType.send(buf, elem);
+                try {
+                    singleDataType.send(buf, elem);
+                } catch(DataException e) {
+                    throw e.prepend("[" + i + "]");
+                } catch(Exception e) {
+                    throw new DataException(DataException.Phase.WRITING, "[" + i + "]", e);
+                }
+                i++;
             }
         }, (buf) -> {
             int count = buf.readInt();
             LinkedList<T> list = new LinkedList<>();
             for(int i = 0; i < count; i++) {
-                list.add(singleDataType.receive(buf));
+                try {
+                    list.add(singleDataType.receive(buf));
+                } catch(DataException e) {
+                    throw e.prepend("[" + i + "]");
+                } catch(Exception e) {
+                    throw new DataException(DataException.Phase.RECEIVING, "[" + i + "]", e);
+                }
             }
             return list;
         }, (json) -> {
             LinkedList<T> list = new LinkedList<>();
             if(json.isJsonArray()) {
+                int i = 0;
                 for(JsonElement je : json.getAsJsonArray()) {
-                    list.add(singleDataType.read(je));
+                    try {
+                        list.add(singleDataType.read(je));
+                    } catch(DataException e) {
+                        throw e.prepend("[" + i + "]");
+                    } catch(Exception e) {
+                        throw new DataException(DataException.Phase.READING, "[" + i + "]", e);
+                    }
+                    i++;
                 }
             } else {
                 list.add(singleDataType.read(json));
@@ -82,27 +105,49 @@ public class SerializableDataType<T> {
     public static <T> SerializableDataType<FilterableWeightedList<T>> weightedList(SerializableDataType<T> singleDataType) {
         return new SerializableDataType<>(ClassUtil.castClass(FilterableWeightedList.class), (buf, list) -> {
             buf.writeInt(list.size());
+            AtomicInteger i = new AtomicInteger();
             list.entryStream().forEach(entry -> {
-                singleDataType.send(buf, entry.getElement());
-                buf.writeInt(((WeightedListEntryAccessor) entry).getWeight());
+                try {
+                    singleDataType.send(buf, entry.getElement());
+                    buf.writeInt(((WeightedListEntryAccessor) entry).getWeight());
+                } catch(DataException e) {
+                    throw e.prepend("[" + i.get() + "]");
+                } catch(Exception e) {
+                    throw new DataException(DataException.Phase.WRITING, "[" + i.get() + "]", e);
+                }
+                i.getAndIncrement();
             });
         }, (buf) -> {
             int count = buf.readInt();
             FilterableWeightedList<T> list = new FilterableWeightedList<>();
             for (int i = 0; i < count; i++) {
-                T t = singleDataType.receive(buf);
-                int weight = buf.readInt();
-                list.add(t, weight);
+                try {
+                    T t = singleDataType.receive(buf);
+                    int weight = buf.readInt();
+                    list.add(t, weight);
+                } catch(DataException e) {
+                    throw e.prepend("[" + i + "]");
+                } catch(Exception e) {
+                    throw new DataException(DataException.Phase.RECEIVING, "[" + i + "]", e);
+                }
             }
             return list;
         }, (json) -> {
             FilterableWeightedList<T> list = new FilterableWeightedList<>();
             if (json.isJsonArray()) {
+                int i = 0;
                 for (JsonElement je : json.getAsJsonArray()) {
-                    JsonObject weightedObj = je.getAsJsonObject();
-                    T elem = singleDataType.read(weightedObj.get("element"));
-                    int weight = JsonHelper.getInt(weightedObj, "weight");
-                    list.add(elem, weight);
+                    try {
+                        JsonObject weightedObj = je.getAsJsonObject();
+                        T elem = singleDataType.read(weightedObj.get("element"));
+                        int weight = JsonHelper.getInt(weightedObj, "weight");
+                        list.add(elem, weight);
+                    } catch(DataException e) {
+                        throw e.prepend("[" + i + "]");
+                    } catch(Exception e) {
+                        throw new DataException(DataException.Phase.READING, "[" + i + "]", e);
+                    }
+                    i++;
                 }
             }
             return list;
