@@ -11,6 +11,12 @@ import java.util.function.Function;
 
 public class SerializableData {
 
+    // Should be set to the current namespace of the file that is being read. Allows using * in identifiers.
+    public static String CURRENT_NAMESPACE;
+
+    // Should be set to the current path of the file that is being read. Allows using * in identifiers.
+    public static String CURRENT_PATH;
+
     private HashMap<String, Entry<?>> dataFields = new HashMap<>();
 
     public SerializableData add(String name, SerializableDataType<?> type) {

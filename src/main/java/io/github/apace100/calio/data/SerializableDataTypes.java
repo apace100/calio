@@ -39,6 +39,7 @@ import net.minecraft.tag.TagGroup;
 import net.minecraft.tag.TagManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.InvalidIdentifierException;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
@@ -85,7 +86,39 @@ public final class SerializableDataTypes {
         Identifier.class,
         PacketByteBuf::writeIdentifier,
         PacketByteBuf::readIdentifier,
-        (json) -> Identifier.tryParse(json.getAsString()));
+        (json) -> {
+            String idString = json.getAsString();
+            if(idString.contains(":")) {
+                String[] idSplit = idString.split(":");
+                if(idSplit.length != 2) {
+                    throw new InvalidIdentifierException("Incorrect number of `:` in identifier: \"" + idString + "\".");
+                }
+                if(idSplit[0].contains("*")) {
+                    if(SerializableData.CURRENT_NAMESPACE != null) {
+                        idSplit[0] = idSplit[0].replace("*", SerializableData.CURRENT_NAMESPACE);
+                    } else {
+                        throw new InvalidIdentifierException("Identifier may not contain a `*` in the namespace when read here.");
+                    }
+                }
+                if(idSplit[1].contains("*")) {
+                    if(SerializableData.CURRENT_PATH != null) {
+                        idSplit[1] = idSplit[1].replace("*", SerializableData.CURRENT_PATH);
+                    } else {
+                        throw new InvalidIdentifierException("Identifier may only contain a `*` in the path inside of powers.");
+                    }
+                }
+                idString = idSplit[0] + ":" + idSplit[1];
+            } else {
+                if(idString.contains("*")) {
+                    if(SerializableData.CURRENT_PATH != null) {
+                        idString = idString.replace("*", SerializableData.CURRENT_PATH);
+                    } else {
+                        throw new InvalidIdentifierException("Identifier may only contain a `*` in the path inside of powers.");
+                    }
+                }
+            }
+            return Identifier.tryParse(idString);
+        });
 
     public static final SerializableDataType<List<Identifier>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
 
