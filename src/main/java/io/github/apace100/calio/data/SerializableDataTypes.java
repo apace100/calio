@@ -117,7 +117,7 @@ public final class SerializableDataTypes {
                     }
                 }
             }
-            return Identifier.tryParse(idString);
+            return new Identifier(idString);
         });
 
     public static final SerializableDataType<List<Identifier>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);

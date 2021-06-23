@@ -16,6 +16,7 @@ import net.minecraft.util.registry.Registry;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -155,17 +156,15 @@ public class SerializableDataType<T> {
     }
 
     public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry) {
-        return new SerializableDataType<>(dataClass,
-            (buf, t) -> buf.writeIdentifier(registry.getId(t)),
-            (buf) -> registry.get(buf.readIdentifier()),
-            (json) -> {
-                Identifier id = Identifier.tryParse(json.getAsString());
-                if(!registry.getIds().contains(id)) {
-                    throw new RuntimeException(
-                        "Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\".");
-                }
-                return registry.get(id);
-            });
+        return wrap(dataClass, SerializableDataTypes.IDENTIFIER, registry::getId, id -> {
+            Optional<T> optional = registry.getOrEmpty(id);
+            if(optional.isPresent()) {
+                return optional.get();
+            } else {
+                throw new RuntimeException(
+                    "Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\".");
+            }
+        });
     }
 
     public static <T> SerializableDataType<T> compound(Class<T> dataClass, SerializableData data, Function<SerializableData.Instance, T> toInstance, BiFunction<SerializableData, T, SerializableData.Instance> toData) {
