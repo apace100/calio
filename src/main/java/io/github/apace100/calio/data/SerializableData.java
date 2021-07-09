@@ -7,6 +7,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.function.Function;
 
 public class SerializableData {
@@ -17,7 +18,7 @@ public class SerializableData {
     // Should be set to the current path of the file that is being read. Allows using * in identifiers.
     public static String CURRENT_PATH;
 
-    private HashMap<String, Entry<?>> dataFields = new HashMap<>();
+    private final LinkedHashMap<String, Entry<?>> dataFields = new LinkedHashMap<>();
 
     public SerializableData add(String name, SerializableDataType<?> type) {
         dataFields.put(name, new Entry<>(type));

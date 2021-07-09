@@ -173,13 +173,24 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<EntityAttribute> ATTRIBUTE = SerializableDataType.registry(EntityAttribute.class, Registry.ATTRIBUTE);
 
-    public static final SerializableDataType<EntityAttributeModifier> ATTRIBUTE_MODIFIER = new SerializableDataType<>(
-        EntityAttributeModifier.class,
-        SerializationHelper::writeAttributeModifier,
-        SerializationHelper::readAttributeModifier,
-        SerializationHelper::readAttributeModifier);
-
     public static final SerializableDataType<EntityAttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(EntityAttributeModifier.Operation.class);
+
+    public static final SerializableDataType<EntityAttributeModifier> ATTRIBUTE_MODIFIER = SerializableDataType.compound(EntityAttributeModifier.class, new SerializableData()
+            .add("name", STRING, "Unnamed attribute modifier")
+            .add("operation", MODIFIER_OPERATION)
+            .add("value", DOUBLE),
+        data -> new EntityAttributeModifier(
+            data.getString("name"),
+            data.getDouble("value"),
+            (EntityAttributeModifier.Operation)data.get("operation")
+        ),
+        (serializableData, modifier) -> {
+            SerializableData.Instance inst = serializableData.new Instance();
+            inst.set("name", modifier.getName());
+            inst.set("value", modifier.getValue());
+            inst.set("operation", modifier.getOperation());
+            return inst;
+        });
 
     public static final SerializableDataType<List<EntityAttributeModifier>> ATTRIBUTE_MODIFIERS =
         SerializableDataType.list(ATTRIBUTE_MODIFIER);

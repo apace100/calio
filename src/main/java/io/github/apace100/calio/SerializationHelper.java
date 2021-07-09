@@ -17,6 +17,7 @@ import net.minecraft.util.JsonHelper;
 import net.minecraft.util.registry.Registry;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -30,17 +31,21 @@ public class SerializationHelper {
         return TagRegistry.block(id);
     }
 
+    // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+    @Deprecated
     public static EntityAttributeModifier readAttributeModifier(JsonElement jsonElement) {
         if(jsonElement.isJsonObject()) {
             JsonObject json = jsonElement.getAsJsonObject();
             String name = JsonHelper.getString(json, "name", "Unnamed attribute modifier");
-            String operation = JsonHelper.getString(json, "operation").toUpperCase();
+            String operation = JsonHelper.getString(json, "operation").toUpperCase(Locale.ROOT);
             double value = JsonHelper.getFloat(json, "value");
             return new EntityAttributeModifier(name, value, EntityAttributeModifier.Operation.valueOf(operation));
         }
         throw new JsonSyntaxException("Attribute modifier needs to be a JSON object.");
     }
 
+    // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+    @Deprecated
     public static EntityAttributeModifier readAttributeModifier(PacketByteBuf buf) {
         String modName = buf.readString(32767);
         double modValue = buf.readDouble();
@@ -48,6 +53,8 @@ public class SerializationHelper {
         return new EntityAttributeModifier(modName, modValue, EntityAttributeModifier.Operation.fromId(operation));
     }
 
+    // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
+    @Deprecated
     public static void writeAttributeModifier(PacketByteBuf buf, EntityAttributeModifier modifier) {
         buf.writeString(modifier.getName());
         buf.writeDouble(modifier.getValue());
