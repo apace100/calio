@@ -44,6 +44,7 @@ import net.minecraft.util.JsonHelper;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
+import net.minecraft.world.event.GameEvent;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -367,4 +368,13 @@ public final class SerializableDataTypes {
             RecipeSerializer serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
             return serializer.read(recipeId, json);
         });
+
+    public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registry.GAME_EVENT);
+
+    public static final SerializableDataType<List<GameEvent>> GAME_EVENTS =
+        SerializableDataType.list(GAME_EVENT);
+
+    public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
+        tag -> Calio.getTagManager().getTagId(Registry.GAME_EVENT_KEY, tag, RuntimeException::new),
+        id -> new IdentifiedTag<>(Registry.GAME_EVENT_KEY, id));
 }
