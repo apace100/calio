@@ -1,5 +1,6 @@
 package io.github.apace100.calio;
 
+import io.github.apace100.calio.data.SerializableDataTypes;
 import io.github.apace100.calio.mixin.CriteriaRegistryInvoker;
 import io.github.apace100.calio.util.TagManagerGetter;
 import net.fabricmc.api.ModInitializer;
@@ -24,9 +25,9 @@ public class Calio implements ModInitializer {
 	public void onInitialize() {
 		CriteriaRegistryInvoker.callRegister(CodeTriggerCriterion.INSTANCE);
 		ServerPlayNetworking.registerGlobalReceiver(PACKET_SHARE_ITEM, ((minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
-			Text text = Text.Serializer.fromJson(packetByteBuf.readString(32767));
+			ItemStack stack = SerializableDataTypes.ITEM_STACK.receive(packetByteBuf);
 			minecraftServer.execute(() -> {
-				Text chatText = new TranslatableText("chat.type.text", serverPlayerEntity.getDisplayName(), text);
+				Text chatText = new TranslatableText("chat.type.text", serverPlayerEntity.getDisplayName(), stack.toHoverableText());
 				minecraftServer.getPlayerManager().broadcastChatMessage(chatText, MessageType.CHAT, serverPlayerEntity.getUuid());
 			});
 		}));

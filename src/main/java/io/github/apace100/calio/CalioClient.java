@@ -1,5 +1,6 @@
 package io.github.apace100.calio;
 
+import io.github.apace100.calio.data.SerializableDataTypes;
 import io.github.apace100.calio.mixin.HandledScreenFocusedSlotAccessor;
 import io.github.apace100.calio.util.ClientTagManagerGetter;
 import io.github.apace100.calio.util.ServerTagManagerGetter;
@@ -38,7 +39,7 @@ public class CalioClient implements ClientModInitializer {
                     sharedStack = true;
                     if (client.player.currentScreenHandler.getCursorStack().isEmpty() && focusedSlot != null && focusedSlot.hasStack()) {
                         PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                        buf.writeString(Text.Serializer.toJson(focusedSlot.getStack().toHoverableText()));
+                        SerializableDataTypes.ITEM_STACK.send(buf, focusedSlot.getStack());
                         ClientPlayNetworking.send(Calio.PACKET_SHARE_ITEM, buf);
                     }
                 }
