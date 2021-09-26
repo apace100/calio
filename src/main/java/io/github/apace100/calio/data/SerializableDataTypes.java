@@ -13,6 +13,7 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.IdentifiedTag;
+import io.github.apace100.calio.util.StatusEffectChance;
 import net.minecraft.block.Block;
 import net.minecraft.client.render.CameraSubmersionType;
 import net.minecraft.enchantment.Enchantment;
@@ -25,6 +26,7 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.fluid.Fluid;
+import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -39,10 +41,7 @@ import net.minecraft.tag.Tag;
 import net.minecraft.tag.TagGroup;
 import net.minecraft.tag.TagManager;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.InvalidIdentifierException;
-import net.minecraft.util.JsonHelper;
+import net.minecraft.util.*;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
@@ -379,4 +378,63 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<EnumSet<EquipmentSlot>> EQUIPMENT_SLOT_SET = SerializableDataType.enumSet(EquipmentSlot.class, EQUIPMENT_SLOT);
 
+    public static final SerializableDataType<ActionResult> ACTION_RESULT = SerializableDataType.enumValue(ActionResult.class);
+
+    public static final SerializableDataType<UseAction> USE_ACTION = SerializableDataType.enumValue(UseAction.class);
+
+    public static final SerializableDataType<StatusEffectChance> STATUS_EFFECT_CHANCE =
+        SerializableDataType.compound(StatusEffectChance.class, new SerializableData()
+            .add("effect", STATUS_EFFECT_INSTANCE)
+            .add("chance", FLOAT, 1.0F),
+            (data) -> {
+                StatusEffectChance sec = new StatusEffectChance();
+                sec.statusEffectInstance = (StatusEffectInstance) data.get("effect");
+                sec.chance = data.getFloat("chance");
+                return sec;
+            },
+            (data, csei) -> {
+                SerializableData.Instance inst = data.new Instance();
+                inst.set("effect", csei.statusEffectInstance);
+                inst.set("chance", csei.chance);
+                return inst;
+            });
+
+    public static final SerializableDataType<List<StatusEffectChance>> STATUS_EFFECT_CHANCES = SerializableDataType.list(STATUS_EFFECT_CHANCE);
+
+    public static final SerializableDataType<FoodComponent> FOOD_COMPONENT = SerializableDataType.compound(FoodComponent.class, new SerializableData()
+            .add("hunger", INT)
+            .add("saturation", FLOAT)
+            .add("meat", BOOLEAN, false)
+            .add("always_edible", BOOLEAN, false)
+            .add("snack", BOOLEAN, false)
+            .add("effect", STATUS_EFFECT_CHANCE, null)
+            .add("effects", STATUS_EFFECT_CHANCES, null),
+        (data) -> {
+            FoodComponent.Builder builder = new FoodComponent.Builder().hunger(data.getInt("hunger")).saturationModifier(data.getFloat("saturation"));
+            if (data.getBoolean("meat")) {
+                builder.meat();
+            }
+            if (data.getBoolean("always_edible")) {
+                builder.alwaysEdible();
+            }
+            if (data.getBoolean("snack")) {
+                builder.snack();
+            }
+            data.<StatusEffectChance>ifPresent("effect", sec -> {
+                builder.statusEffect(sec.statusEffectInstance, sec.chance);
+            });
+            data.<List<StatusEffectChance>>ifPresent("effects", secs -> secs.forEach(sec -> {
+                builder.statusEffect(sec.statusEffectInstance, sec.chance);
+            }));
+            return builder.build();
+        },
+        (data, fc) -> {
+            SerializableData.Instance inst = data.new Instance();
+            inst.set("hunger", fc.getHunger());
+            inst.set("saturation", fc.getSaturationModifier());
+            inst.set("meat", fc.isMeat());
+            inst.set("always_edible", fc.isAlwaysEdible());
+            inst.set("snack", fc.isSnack());
+            return inst;
+        });
 }

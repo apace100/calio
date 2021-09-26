@@ -8,6 +8,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class SerializableData {
@@ -108,6 +109,14 @@ public class SerializableData {
                 }
             }
             return true;
+        }
+
+        public <T> void ifPresent(String name, Consumer<T> consumer) {
+            if(isPresent(name)) {
+                Object o = get(name);
+                T t = (T)o;
+                consumer.accept(t);
+            }
         }
 
         public void set(String name, Object value) {
