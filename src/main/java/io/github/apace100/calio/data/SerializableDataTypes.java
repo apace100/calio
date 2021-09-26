@@ -14,6 +14,7 @@ import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.IdentifiedTag;
 import net.minecraft.block.Block;
+import net.minecraft.client.render.CameraSubmersionType;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
 import net.minecraft.entity.EntityType;
@@ -38,6 +39,7 @@ import net.minecraft.tag.Tag;
 import net.minecraft.tag.TagGroup;
 import net.minecraft.tag.TagManager;
 import net.minecraft.text.Text;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.InvalidIdentifierException;
 import net.minecraft.util.JsonHelper;
@@ -46,10 +48,7 @@ import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 public final class SerializableDataTypes {
 
@@ -212,21 +211,13 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
-    public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
-        item -> Calio.getTagManager().getTagId(Registry.ITEM_KEY, item, () -> new JsonSyntaxException("Unknown fluid tag")),
-        id -> new IdentifiedTag<>(Registry.ITEM_KEY, id));
+    public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_KEY);
 
-    public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
-        fluid -> Calio.getTagManager().getTagId(Registry.FLUID_KEY, fluid, () -> new JsonSyntaxException("Unknown fluid tag")),
-        id -> new IdentifiedTag<>(Registry.FLUID_KEY, id));
+    public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_KEY);
 
-    public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), IDENTIFIER,
-        block -> Calio.getTagManager().getTagId(Registry.BLOCK_KEY, block, () -> new JsonSyntaxException("Unknown block tag")),
-        id -> new IdentifiedTag<>(Registry.BLOCK_KEY, id));
+    public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_KEY);
 
-    public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-        tag -> Calio.getTagManager().getTagId(Registry.ENTITY_TYPE_KEY, tag, RuntimeException::new),
-        id -> new IdentifiedTag<>(Registry.ENTITY_TYPE_KEY, id));
+    public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_KEY);
 
     public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(List.class),
         new SerializableData()
@@ -377,4 +368,15 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
         tag -> Calio.getTagManager().getTagId(Registry.GAME_EVENT_KEY, tag, RuntimeException::new),
         id -> new IdentifiedTag<>(Registry.GAME_EVENT_KEY, id));
+
+    public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
+
+    public static final SerializableDataType<CameraSubmersionType> CAMERA_SUBMERSION_TYPE = SerializableDataType.enumValue(CameraSubmersionType.class);
+
+    public static final SerializableDataType<Hand> HAND = SerializableDataType.enumValue(Hand.class);
+
+    public static final SerializableDataType<EnumSet<Hand>> HAND_SET = SerializableDataType.enumSet(Hand.class, HAND);
+
+    public static final SerializableDataType<EnumSet<EquipmentSlot>> EQUIPMENT_SLOT_SET = SerializableDataType.enumSet(EquipmentSlot.class, EQUIPMENT_SLOT);
+
 }
