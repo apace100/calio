@@ -31,6 +31,11 @@
   "mixins": [
     "calio.mixins.json"
   ],
+  "custom": {
+    "modmenu": {
+      "badges": ["library"]
+    }
+  },
 
   "depends": {
     "fabricloader": ">=0.11.3",
