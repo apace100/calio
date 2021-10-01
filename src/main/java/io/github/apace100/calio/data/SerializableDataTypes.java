@@ -42,6 +42,7 @@ import net.minecraft.tag.TagGroup;
 import net.minecraft.tag.TagManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.World;
@@ -330,6 +331,8 @@ public final class SerializableDataTypes {
         (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
         Text.Serializer::fromJson);
 
+    public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
+
     public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.wrap(
         ClassUtil.castClass(RegistryKey.class),
         SerializableDataTypes.IDENTIFIER,
@@ -436,5 +439,19 @@ public final class SerializableDataTypes {
             inst.set("always_edible", fc.isAlwaysEdible());
             inst.set("snack", fc.isSnack());
             return inst;
+        });
+
+    public static final SerializableDataType<Direction> DIRECTION = SerializableDataType.enumValue(Direction.class);
+
+    public static final SerializableDataType<EnumSet<Direction>> DIRECTION_SET = SerializableDataType.enumSet(Direction.class, DIRECTION);
+
+    public static final SerializableDataType<Class<?>> CLASS = SerializableDataType.wrap(ClassUtil.castClass(Class.class), SerializableDataTypes.STRING,
+        Class::getName,
+        str -> {
+            try {
+                return Class.forName(str);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException("Specified class does not exist: \"" + str + "\".");
+            }
         });
 }
