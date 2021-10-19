@@ -15,7 +15,9 @@ import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.apace100.calio.util.StatusEffectChance;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.render.CameraSubmersionType;
+import net.minecraft.command.argument.BlockArgumentParser;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
 import net.minecraft.entity.EntityType;
@@ -276,6 +278,16 @@ public final class SerializableDataTypes {
         Ingredient::fromJson);
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registry.BLOCK);
+
+    public static final SerializableDataType<BlockState> BLOCK_STATE = SerializableDataType.wrap(BlockState.class, STRING,
+        BlockArgumentParser::stringifyBlockState,
+        string -> {
+            try {
+                return (new BlockArgumentParser(new StringReader(string), false)).parse(false).getBlockState();
+            } catch (CommandSyntaxException e) {
+                throw new JsonParseException(e);
+            }
+        });
 
     public static final SerializableDataType<EntityGroup> ENTITY_GROUP =
         SerializableDataType.mapped(EntityGroup.class, HashBiMap.create(ImmutableMap.of(
