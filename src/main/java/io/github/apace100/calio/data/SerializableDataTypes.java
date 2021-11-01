@@ -2,10 +2,8 @@ package io.github.apace100.calio.data;
 
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableMap;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonSyntaxException;
+import com.google.gson.*;
+import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.apace100.calio.Calio;
@@ -83,6 +81,54 @@ public final class SerializableDataTypes {
         PacketByteBuf::writeString,
         (buf) -> buf.readString(32767),
         JsonElement::getAsString);
+
+    public static final SerializableDataType<Number> NUMBER = new SerializableDataType<>(
+        Number.class,
+        (buf, number) -> {
+            if(number instanceof Double) {
+                buf.writeByte(0);
+                buf.writeDouble(number.doubleValue());
+            } else if(number instanceof Float) {
+                buf.writeByte(1);
+                buf.writeFloat(number.floatValue());
+            } else if(number instanceof Integer) {
+                buf.writeByte(2);
+                buf.writeInt(number.intValue());
+            } else if(number instanceof Long) {
+                buf.writeByte(3);
+                buf.writeLong(number.longValue());
+            } else {
+                buf.writeByte(4);
+                buf.writeString(number.toString());
+            }
+        },
+        buf -> {
+            byte type = buf.readByte();
+            switch(type) {
+                case 0:
+                    return buf.readDouble();
+                case 1:
+                    return buf.readFloat();
+                case 2:
+                    return buf.readInt();
+                case 3:
+                    return buf.readLong();
+                case 4:
+                    return new LazilyParsedNumber(buf.readString());
+            }
+            throw new RuntimeException("Could not receive number, unexpected type id \"" + type + "\" (allowed range: [0-4])");
+        },
+        je -> {
+            if(je.isJsonPrimitive()) {
+                JsonPrimitive primitive = je.getAsJsonPrimitive();
+                if(primitive.isNumber()) {
+                    return primitive.getAsNumber();
+                } else if(primitive.isBoolean()) {
+                    return primitive.getAsBoolean() ? 1 : 0;
+                }
+            }
+            throw new JsonParseException("Expected a primitive");
+        });
 
     public static final SerializableDataType<Identifier> IDENTIFIER = new SerializableDataType<>(
         Identifier.class,

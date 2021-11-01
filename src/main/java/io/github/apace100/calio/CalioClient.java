@@ -2,6 +2,7 @@ package io.github.apace100.calio;
 
 import io.github.apace100.calio.data.SerializableDataTypes;
 import io.github.apace100.calio.mixin.HandledScreenFocusedSlotAccessor;
+import io.github.apace100.calio.network.CalioNetworkingClient;
 import io.github.apace100.calio.util.ClientTagManagerGetter;
 import io.github.apace100.calio.util.ServerTagManagerGetter;
 import io.netty.buffer.Unpooled;
@@ -48,5 +49,6 @@ public class CalioClient implements ClientModInitializer {
                 }
             }
         });
+        CalioNetworkingClient.registerReceivers();
     }
 }
