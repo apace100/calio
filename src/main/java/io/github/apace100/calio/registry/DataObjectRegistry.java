@@ -1,7 +1,6 @@
 package io.github.apace100.calio.registry;
 
 import com.google.gson.*;
-import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.apace100.calio.data.SerializableData;
 import io.github.apace100.calio.data.SerializableDataType;
@@ -24,7 +23,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class DataObjectRegistry<T extends DataObject<T>> {
@@ -38,6 +36,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
     private final HashMap<Identifier, T> idToEntry = new HashMap<>();
     private final HashMap<T, Identifier> entryToId = new HashMap<>();
 
+    private final String factoryFieldName;
     private final HashMap<Identifier, DataObjectFactory<T>> factoriesById = new HashMap<>();
     private final HashMap<DataObjectFactory<T>, Identifier> factoryToId = new HashMap<>();
 
@@ -46,14 +45,15 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
     private final Function<JsonElement, JsonObject> nonJsonObjectHandler;
 
-    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, Function<JsonElement, JsonObject> nonJsonObjectHandler) {
+    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, Function<JsonElement, JsonObject> nonJsonObjectHandler) {
         this.registryId = registryId;
         this.objectClass = objectClass;
+        this.factoryFieldName = factoryFieldName;
         this.nonJsonObjectHandler = nonJsonObjectHandler;
     }
 
-    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, Function<JsonElement, JsonObject> nonJsonObjectHandler, String dataFolder, boolean useLoadingPriority, BiConsumer<Identifier, Exception> errorHandler) {
-        this(registryId, objectClass, nonJsonObjectHandler);
+    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, Function<JsonElement, JsonObject> nonJsonObjectHandler, String dataFolder, boolean useLoadingPriority, BiConsumer<Identifier, Exception> errorHandler) {
+        this(registryId, objectClass, factoryFieldName, nonJsonObjectHandler);
         Loader loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
         ResourceManagerHelper.get(ResourceType.SERVER_DATA).registerReloadListener(loader);
     }
@@ -123,19 +123,19 @@ public class DataObjectRegistry<T extends DataObject<T>> {
             }
         }
         JsonObject jsonObject = element.getAsJsonObject();
-        String type = JsonHelper.getString(jsonObject, "type");
+        String type = JsonHelper.getString(jsonObject, factoryFieldName);
         Identifier factoryId = null;
         try {
             factoryId = new Identifier(type);
         } catch (InvalidIdentifierException e) {
             throw new JsonParseException(
                 "Could not read data object of type \"" + registryId +
-                    "\": invalid factory identifier (id: \"" + factoryId + "\".", e);
+                    "\": invalid factory identifier (id: \"" + factoryId + "\").", e);
         }
         if(!factoriesById.containsKey(factoryId)) {
             throw new JsonParseException(
                 "Could not read data object of type \"" + registryId +
-                    "\": unknown factory (id: \"" + factoryId + "\".");
+                    "\": unknown factory (id: \"" + factoryId + "\").");
         }
         DataObjectFactory<T> factory = getFactory(factoryId);
         SerializableData.Instance data = factory.getData().read(jsonObject);
@@ -257,6 +257,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
         private final Identifier registryId;
         private final Class<T> objectClass;
+        private String factoryFieldName = "type";
         private boolean autoSync = false;
         private Function<JsonElement, JsonObject> nonJsonObjectHandler;
         private String dataFolder;
@@ -282,6 +283,11 @@ public class DataObjectRegistry<T extends DataObject<T>> {
             return this;
         }
 
+        public Builder<T> factoryFieldName(String factoryFieldName) {
+            this.factoryFieldName = factoryFieldName;
+            return this;
+        }
+
         public Builder<T> readFromData(String dataFolder, boolean useLoadingPriority) {
             readFromData = true;
             this.dataFolder = dataFolder;
@@ -297,9 +303,9 @@ public class DataObjectRegistry<T extends DataObject<T>> {
         public DataObjectRegistry<T> buildAndRegister() {
             DataObjectRegistry<T> registry;
             if(readFromData) {
-                registry = new DataObjectRegistry<>(registryId, objectClass, nonJsonObjectHandler, dataFolder, useLoadingPriority, errorHandler);
+                registry = new DataObjectRegistry<>(registryId, objectClass, factoryFieldName, nonJsonObjectHandler, dataFolder, useLoadingPriority, errorHandler);
             } else {
-                registry = new DataObjectRegistry<>(registryId, objectClass, nonJsonObjectHandler);
+                registry = new DataObjectRegistry<>(registryId, objectClass, factoryFieldName, nonJsonObjectHandler);
             }
             REGISTRIES.put(registryId, registry);
             if(autoSync) {
