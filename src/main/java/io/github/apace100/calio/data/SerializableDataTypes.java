@@ -32,6 +32,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
@@ -58,6 +59,8 @@ public final class SerializableDataTypes {
         PacketByteBuf::readInt,
         JsonElement::getAsInt);
 
+    public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
+
     public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(
         Boolean.class,
         PacketByteBuf::writeBoolean,
@@ -70,17 +73,23 @@ public final class SerializableDataTypes {
         PacketByteBuf::readFloat,
         JsonElement::getAsFloat);
 
+    public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
+
     public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(
         Double.class,
         PacketByteBuf::writeDouble,
         PacketByteBuf::readDouble,
         JsonElement::getAsDouble);
 
+    public static final SerializableDataType<List<Double>> DOUBLES = SerializableDataType.list(DOUBLE);
+
     public static final SerializableDataType<String> STRING = new SerializableDataType<>(
         String.class,
         PacketByteBuf::writeString,
         (buf) -> buf.readString(32767),
         JsonElement::getAsString);
+
+    public static final SerializableDataType<List<String>> STRINGS = SerializableDataType.list(STRING);
 
     public static final SerializableDataType<Number> NUMBER = new SerializableDataType<>(
         Number.class,
@@ -129,6 +138,8 @@ public final class SerializableDataTypes {
             }
             throw new JsonParseException("Expected a primitive");
         });
+
+    public static final SerializableDataType<List<Number>> NUMBERS = SerializableDataType.list(NUMBER);
 
     public static final SerializableDataType<Identifier> IDENTIFIER = new SerializableDataType<>(
         Identifier.class,
@@ -351,6 +362,51 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), Registry.ENTITY_TYPE);
 
     public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), Registry.PARTICLE_TYPE);
+
+    public static final SerializableDataType<ParticleEffect> PARTICLE_EFFECT = SerializableDataType.compound(ParticleEffect.class,
+        new SerializableData()
+            .add("type", PARTICLE_TYPE)
+            .add("params", STRING, ""),
+        dataInstance -> {
+            ParticleType<? extends ParticleEffect> particleType = dataInstance.get("type");
+            ParticleEffect.Factory factory = particleType.getParametersFactory();
+            ParticleEffect effect = null;
+            try {
+                effect = factory.read(particleType, new StringReader(" " + dataInstance.getString("params")));
+            } catch (CommandSyntaxException e) {
+                throw new RuntimeException(e);
+            }
+            return effect;
+        },
+        ((serializableData, particleEffect) -> {
+            SerializableData.Instance data = serializableData.new Instance();
+            data.set("type", particleEffect.getType());
+            String params = particleEffect.asString();
+            int spaceIndex = params.indexOf(' ');
+            if(spaceIndex > -1) {
+                params = params.substring(spaceIndex + 1);
+            } else {
+                params = "";
+            }
+            data.set("params", params);
+            return data;
+        }));
+
+    public static final SerializableDataType<ParticleEffect> PARTICLE_EFFECT_OR_TYPE = new SerializableDataType<>(ParticleEffect.class,
+        PARTICLE_EFFECT::send,
+        PARTICLE_EFFECT::receive,
+        jsonElement -> {
+            if(jsonElement.isJsonPrimitive() && jsonElement.getAsJsonPrimitive().isString()) {
+                ParticleType<?> type = PARTICLE_TYPE.read(jsonElement);
+                if(type instanceof ParticleEffect) {
+                    return (ParticleEffect) type;
+                }
+                throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
+            } else if(jsonElement.isJsonObject()) {
+                return PARTICLE_EFFECT.read(jsonElement);
+            }
+            throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
+        });
 
     public static final SerializableDataType<NbtCompound> NBT = SerializableDataType.wrap(NbtCompound.class, SerializableDataTypes.STRING,
         NbtCompound::toString,

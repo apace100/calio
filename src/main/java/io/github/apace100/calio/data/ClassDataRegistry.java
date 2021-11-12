@@ -46,33 +46,45 @@ public class ClassDataRegistry<T> {
         return listDataType;
     }
 
+    public Optional<Class<? extends T>> mapStringToClass(String str) {
+        return mapStringToClass(str, new StringBuilder());
+    }
+
+    public Optional<Class<? extends T>> mapStringToClass(String str, StringBuilder failedClasses) {
+        if(directMappings.containsKey(str)) {
+            return Optional.of(directMappings.get(str));
+        }
+        try {
+            return Optional.of((Class<? extends T>)Class.forName(str));
+        } catch(Exception e0) {
+            failedClasses.append(str);
+        }
+        for(String pkg : packages) {
+            String full = pkg + "." + str;
+            try {
+                return Optional.of((Class<? extends T>)Class.forName(full));
+            } catch(Exception e1) {
+                failedClasses.append(", ");
+                failedClasses.append(full);
+            }
+            full = pkg + "." + transformJsonToClass(str, classSuffix);
+            try {
+                return Optional.of((Class<? extends T>)Class.forName(full));
+            } catch(Exception e2) {
+                failedClasses.append(", ");
+                failedClasses.append(full);
+            }
+        }
+        return Optional.empty();
+    }
+
     private SerializableDataType<Class<? extends T>> createDataType() {
         return SerializableDataType.wrap(ClassUtil.castClass(Class.class), SerializableDataTypes.STRING,
             Class::getName, str -> {
                 StringBuilder failedClasses = new StringBuilder();
-                if(directMappings.containsKey(str)) {
-                    return directMappings.get(str);
-                }
-                try {
-                    return (Class<? extends T>)Class.forName(str);
-                } catch(Exception e0) {
-                    failedClasses.append(str);
-                }
-                for(String pkg : packages) {
-                    String full = pkg + "." + str;
-                    try {
-                        return (Class<? extends T>)Class.forName(full);
-                    } catch(Exception e1) {
-                        failedClasses.append(", ");
-                        failedClasses.append(full);
-                    }
-                    full = pkg + "." + transformJsonToClass(str, classSuffix);
-                    try {
-                        return (Class<? extends T>)Class.forName(full);
-                    } catch(Exception e2) {
-                        failedClasses.append(", ");
-                        failedClasses.append(full);
-                    }
+                Optional<Class<? extends T>> optionalClass = mapStringToClass(str, failedClasses);
+                if(optionalClass.isPresent()) {
+                    return optionalClass.get();
                 }
                 throw new RuntimeException("Specified class does not exist: \"" + str + "\". Looked at [" + failedClasses + "]");
             });

@@ -123,11 +123,11 @@ public class SerializableData {
             this.data.put(name, value);
         }
 
-        public Object get(String name) {
+        public <T> T get(String name) {
             if(!data.containsKey(name)) {
                 throw new RuntimeException("Tried to get field \"" + name + "\" from data, which did not exist.");
             }
-            return data.get(name);
+            return (T)data.get(name);
         }
 
         public int getInt(String name) {
