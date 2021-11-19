@@ -29,6 +29,8 @@ public class CalioNetworkingClient {
         PacketByteBuf packetByteBuf,
         PacketSender packetSender) {
         Identifier registryId = packetByteBuf.readIdentifier();
-        DataObjectRegistry.getRegistry(registryId).receive(packetByteBuf);
+        minecraftClient.execute(() -> {
+            DataObjectRegistry.getRegistry(registryId).receive(packetByteBuf);
+        });
     }
 }

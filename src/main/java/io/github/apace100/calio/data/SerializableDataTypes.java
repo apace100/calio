@@ -15,6 +15,7 @@ import io.github.apace100.calio.util.StatusEffectChance;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.CameraSubmersionType;
+import net.minecraft.client.util.math.Vector3d;
 import net.minecraft.command.argument.BlockArgumentParser;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
@@ -46,8 +47,10 @@ import net.minecraft.util.*;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
+import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
+import net.minecraft.world.explosion.Explosion;
 
 import java.util.*;
 
@@ -140,6 +143,29 @@ public final class SerializableDataTypes {
         });
 
     public static final SerializableDataType<List<Number>> NUMBERS = SerializableDataType.list(NUMBER);
+
+    public static final SerializableDataType<Vector3d> VECTOR = new SerializableDataType<>(Vector3d.class,
+        (packetByteBuf, vector3d) -> {
+            packetByteBuf.writeDouble(vector3d.x);
+            packetByteBuf.writeDouble(vector3d.y);
+            packetByteBuf.writeDouble(vector3d.z);
+        },
+        (packetByteBuf -> new Vector3d(
+            packetByteBuf.readDouble(),
+            packetByteBuf.readDouble(),
+            packetByteBuf.readDouble())),
+        (jsonElement -> {
+            if(jsonElement.isJsonObject()) {
+                JsonObject jo = jsonElement.getAsJsonObject();
+                return new Vector3d(
+                    JsonHelper.getDouble(jo, "x", 0),
+                    JsonHelper.getDouble(jo, "y", 0),
+                    JsonHelper.getDouble(jo, "z", 0)
+                );
+            } else {
+                throw new JsonParseException("Expected an object with x, y, and z fields.");
+            }
+        }));
 
     public static final SerializableDataType<Identifier> IDENTIFIER = new SerializableDataType<>(
         Identifier.class,
@@ -568,4 +594,13 @@ public final class SerializableDataTypes {
                 throw new RuntimeException("Specified class does not exist: \"" + str + "\".");
             }
         });
+
+    public static final SerializableDataType<RaycastContext.ShapeType> SHAPE_TYPE = SerializableDataType.enumValue(RaycastContext.ShapeType.class);
+
+    public static final SerializableDataType<RaycastContext.FluidHandling> FLUID_HANDLING = SerializableDataType.enumValue(RaycastContext.FluidHandling.class);
+
+    public static final SerializableDataType<Explosion.DestructionType> DESTRUCTION_TYPE = SerializableDataType.enumValue(Explosion.DestructionType.class);
+
+    public static final SerializableDataType<Direction.Axis> AXIS = SerializableDataType.enumValue(Direction.Axis.class);
+
 }
