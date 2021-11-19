@@ -28,22 +28,22 @@ public class Calio implements ModInitializer {
 			ItemStack stack = SerializableDataTypes.ITEM_STACK.receive(packetByteBuf);
 			minecraftServer.execute(() -> {
 				Text chatText = new TranslatableText("chat.type.text", serverPlayerEntity.getDisplayName(), stack.toHoverableText());
-				minecraftServer.getPlayerManager().broadcastChatMessage(chatText, MessageType.CHAT, serverPlayerEntity.getUuid());
+				minecraftServer.getPlayerManager().broadcast(chatText, MessageType.CHAT, serverPlayerEntity.getUuid());
 			});
 		}));
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {
-		return stack.hasTag() && stack.getSubTag("display") != null && stack.getSubTag("display").getBoolean(NbtConstants.NON_ITALIC_NAME);
+		return stack.hasNbt() && stack.getSubNbt("display") != null && stack.getSubNbt("display").getBoolean(NbtConstants.NON_ITALIC_NAME);
 	}
 
 	public static void setNameNonItalic(ItemStack stack) {
 		if(stack != null)
-			stack.getOrCreateSubTag("display").putBoolean(NbtConstants.NON_ITALIC_NAME, true);
+			stack.getOrCreateSubNbt("display").putBoolean(NbtConstants.NON_ITALIC_NAME, true);
 	}
 
 	public static boolean areEntityAttributesAdditional(ItemStack stack) {
-		return stack.hasTag() && stack.getTag().contains(NbtConstants.ADDITIONAL_ATTRIBUTES) && stack.getTag().getBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES);
+		return stack.hasNbt() && stack.getNbt().contains(NbtConstants.ADDITIONAL_ATTRIBUTES) && stack.getNbt().getBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES);
 	}
 
 	/**
@@ -55,10 +55,10 @@ public class Calio implements ModInitializer {
 	public static void setEntityAttributesAdditional(ItemStack stack, boolean additional) {
 		if(stack != null) {
 			if(additional) {
-				stack.getOrCreateTag().putBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES, true);
+				stack.getOrCreateNbt().putBoolean(NbtConstants.ADDITIONAL_ATTRIBUTES, true);
 			} else {
-				if(stack.hasTag()) {
-					stack.getTag().remove(NbtConstants.ADDITIONAL_ATTRIBUTES);
+				if(stack.hasNbt()) {
+					stack.getNbt().remove(NbtConstants.ADDITIONAL_ATTRIBUTES);
 				}
 			}
 		}

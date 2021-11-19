@@ -38,7 +38,7 @@ public abstract class CustomNonItalicNameMixin {
     public abstract static class RemoveNonItalicOnRename {
         @Inject(method = "updateResult", at = @At(value = "INVOKE", target = "Lnet/minecraft/item/ItemStack;setCustomName(Lnet/minecraft/text/Text;)Lnet/minecraft/item/ItemStack;"), locals = LocalCapture.CAPTURE_FAILHARD)
         private void removeNonItalicFlag(CallbackInfo ci, ItemStack itemStack, int i, int j, int k, ItemStack itemStack2) {
-            NbtCompound display = itemStack2.getSubTag("display");
+            NbtCompound display = itemStack2.getSubNbt("display");
             if(display != null && display.contains(NbtConstants.NON_ITALIC_NAME)) {
                 display.remove(NbtConstants.NON_ITALIC_NAME);
             }

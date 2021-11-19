@@ -29,7 +29,7 @@ public class CodeTriggerCriterion extends AbstractCriterion<CodeTriggerCriterion
     }
 
     public void trigger(ServerPlayerEntity player, String triggeredId) {
-        this.test(player, (conditions) -> conditions.matches(triggeredId));
+        this.trigger(player, (conditions) -> conditions.matches(triggeredId));
     }
 
     public static class Conditions extends AbstractCriterionConditions {

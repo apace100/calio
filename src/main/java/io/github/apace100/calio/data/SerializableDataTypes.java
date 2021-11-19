@@ -9,6 +9,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
+import io.github.apace100.calio.data.SerializableData.Instance;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.apace100.calio.util.StatusEffectChance;
@@ -267,7 +268,7 @@ public final class SerializableDataTypes {
         data -> new EntityAttributeModifier(
             data.getString("name"),
             data.getDouble("value"),
-            (EntityAttributeModifier.Operation)data.get("operation")
+            data.get("operation")
         ),
         (serializableData, modifier) -> {
             SerializableData.Instance inst = serializableData.new Instance();
@@ -315,7 +316,7 @@ public final class SerializableDataTypes {
                 throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
             }
             if(tagPresent) {
-                Tag<Item> tag = (Tag<Item>)dataInstance.get("tag");
+                Tag<Item> tag = dataInstance.get("tag");
                 return List.copyOf(tag.values());
             } else {
                 return List.of((Item)dataInstance.get("item"));
@@ -450,9 +451,9 @@ public final class SerializableDataTypes {
             .add("amount", SerializableDataTypes.INT, 1)
             .add("tag", NBT, null),
         (data) ->  {
-            ItemStack stack = new ItemStack((Item)data.get("item"), data.getInt("amount"));
+            ItemStack stack = new ItemStack(data.get("item"), data.getInt("amount"));
             if(data.isPresent("tag")) {
-                stack.setTag((NbtCompound)data.get("tag"));
+                stack.setNbt(data.get("tag"));
             }
             return stack;
         },
@@ -460,7 +461,7 @@ public final class SerializableDataTypes {
             SerializableData.Instance data = serializableData.new Instance();
             data.set("item", itemStack.getItem());
             data.set("amount", itemStack.getCount());
-            data.set("tag", itemStack.hasTag() ? itemStack.getTag() : null);
+            data.set("tag", itemStack.hasNbt() ? itemStack.getNbt() : null);
             return data;
         }));
 
@@ -531,7 +532,7 @@ public final class SerializableDataTypes {
             .add("chance", FLOAT, 1.0F),
             (data) -> {
                 StatusEffectChance sec = new StatusEffectChance();
-                sec.statusEffectInstance = (StatusEffectInstance) data.get("effect");
+                sec.statusEffectInstance = data.get("effect");
                 sec.chance = data.getFloat("chance");
                 return sec;
             },
