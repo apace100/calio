@@ -579,6 +579,19 @@ public final class SerializableDataTypes {
             inst.set("meat", fc.isMeat());
             inst.set("always_edible", fc.isAlwaysEdible());
             inst.set("snack", fc.isSnack());
+            inst.set("effect", null);
+            List<StatusEffectChance> statusEffectChances = new LinkedList<>();
+            fc.getStatusEffects().forEach(pair -> {
+                StatusEffectChance sec = new StatusEffectChance();
+                sec.statusEffectInstance = pair.getFirst();
+                sec.chance = pair.getSecond();
+                statusEffectChances.add(sec);
+            });
+            if(statusEffectChances.size() > 0) {
+                inst.set("effects", statusEffectChances);
+            } else {
+                inst.set("effects", null);
+            }
             return inst;
         });
 
