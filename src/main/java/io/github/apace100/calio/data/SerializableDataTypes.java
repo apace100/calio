@@ -9,7 +9,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.data.SerializableData.Instance;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.apace100.calio.util.StatusEffectChance;
@@ -17,7 +16,6 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Material;
 import net.minecraft.client.render.CameraSubmersionType;
-import net.minecraft.client.util.math.Vector3d;
 import net.minecraft.command.argument.BlockArgumentParser;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
@@ -57,6 +55,7 @@ import net.minecraft.world.explosion.Explosion;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 public final class SerializableDataTypes {
 
     public static final SerializableDataType<Integer> INT = new SerializableDataType<>(
@@ -491,7 +490,7 @@ public final class SerializableDataTypes {
         (buffer) -> {
             Identifier recipeSerializerId = buffer.readIdentifier();
             Identifier recipeId = buffer.readIdentifier();
-            RecipeSerializer serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
+            RecipeSerializer<?> serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
             return serializer.read(recipeId, buffer);
         },
         (jsonElement) -> {
@@ -501,7 +500,7 @@ public final class SerializableDataTypes {
             JsonObject json = jsonElement.getAsJsonObject();
             Identifier recipeSerializerId = Identifier.tryParse(JsonHelper.getString(json, "type"));
             Identifier recipeId = Identifier.tryParse(JsonHelper.getString(json, "id"));
-            RecipeSerializer serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
+            RecipeSerializer<?> serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
             return serializer.read(recipeId, json);
         });
 
