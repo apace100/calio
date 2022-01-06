@@ -1,36 +1,22 @@
 package io.github.apace100.calio;
 
-import io.github.apace100.calio.data.SerializableDataTypes;
 import io.github.apace100.calio.mixin.CriteriaRegistryInvoker;
 import io.github.apace100.calio.util.TagManagerGetter;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.MessageType;
 import net.minecraft.tag.Tag;
 import net.minecraft.tag.TagManager;
-import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 
 public class Calio implements ModInitializer {
 
-	public static final Identifier PACKET_SHARE_ITEM = new Identifier("calio", "share_item");
-
 	static TagManagerGetter tagManagerGetter;
 
 	@Override
 	public void onInitialize() {
 		CriteriaRegistryInvoker.callRegister(CodeTriggerCriterion.INSTANCE);
-		ServerPlayNetworking.registerGlobalReceiver(PACKET_SHARE_ITEM, ((minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
-			ItemStack stack = SerializableDataTypes.ITEM_STACK.receive(packetByteBuf);
-			minecraftServer.execute(() -> {
-				Text chatText = new TranslatableText("chat.type.text", serverPlayerEntity.getDisplayName(), stack.toHoverableText());
-				minecraftServer.getPlayerManager().broadcast(chatText, MessageType.CHAT, serverPlayerEntity.getUuid());
-			});
-		}));
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {

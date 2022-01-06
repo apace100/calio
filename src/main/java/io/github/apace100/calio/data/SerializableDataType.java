@@ -2,10 +2,14 @@ package io.github.apace100.calio.data;
 
 import com.google.common.collect.BiMap;
 import com.google.gson.*;
+import com.mojang.brigadier.StringReader;
+import com.mojang.brigadier.arguments.ArgumentType;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
+import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.IdentifiedTag;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.tag.Tag;
@@ -241,7 +245,7 @@ public class SerializableDataType<T> {
                         }
                     }
                 }
-                throw new JsonSyntaxException("Expected value to be either a string.");
+                throw new JsonSyntaxException("Expected value to be a string.");
             });
     }
 
@@ -295,6 +299,19 @@ public class SerializableDataType<T> {
                     throw new RuntimeException("Expected enum set to be either an array or a primitive.");
                 }
                 return set;
+            });
+    }
+
+    public static <T, U extends ArgumentType<T>> SerializableDataType<ArgumentWrapper<T>> argumentType(U argumentType) {
+        return wrap(ClassUtil.castClass(ArgumentWrapper.class), SerializableDataTypes.STRING,
+            ArgumentWrapper::rawArgument,
+            str -> {
+                try {
+                    T t = argumentType.parse(new StringReader(str));
+                    return new ArgumentWrapper<>(t, str);
+                } catch (CommandSyntaxException e) {
+                    throw new RuntimeException("Wrong syntax in argument type data", e);
+                }
             });
     }
 }

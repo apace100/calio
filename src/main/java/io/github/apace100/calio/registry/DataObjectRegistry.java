@@ -1,6 +1,8 @@
 package io.github.apace100.calio.registry;
 
 import com.google.gson.*;
+import io.github.apace100.calio.Calio;
+import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.apace100.calio.data.SerializableData;
 import io.github.apace100.calio.data.SerializableDataType;
@@ -22,7 +24,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class DataObjectRegistry<T extends DataObject<T>> {
 
@@ -40,7 +44,9 @@ public class DataObjectRegistry<T extends DataObject<T>> {
     private final HashMap<DataObjectFactory<T>, Identifier> factoryToId = new HashMap<>();
 
     private SerializableDataType<T> dataType;
+    private SerializableDataType<List<T>> listDataType;
     private SerializableDataType<T> registryDataType;
+    private SerializableDataType<Supplier<T>> lazyDataType;
 
     private final Function<JsonElement, JsonElement> jsonPreprocessor;
 
@@ -95,13 +101,21 @@ public class DataObjectRegistry<T extends DataObject<T>> {
     }
 
     public void receive(PacketByteBuf buf) {
-        clear();
+        receive(buf, Runnable::run);
+    }
+
+    public void receive(PacketByteBuf buf, Consumer<Runnable> scheduler) {
         int entryCount = buf.readInt();
+        HashMap<Identifier, T> entries = new HashMap<>(entryCount);
         for(int i = 0; i < entryCount; i++) {
             Identifier entryId = buf.readIdentifier();
             T entry = receiveDataObject(buf);
-            register(entryId, entry);
+            entries.put(entryId, entry);
         }
+        scheduler.accept(() -> {
+            clear();
+            entries.forEach(this::register);
+        });
     }
 
     public T receiveDataObject(PacketByteBuf buf) {
@@ -177,11 +191,33 @@ public class DataObjectRegistry<T extends DataObject<T>> {
         return dataType;
     }
 
+    public SerializableDataType<List<T>> listDataType() {
+        if(dataType == null) {
+            dataType = createDataType();
+        }
+        if(listDataType == null) {
+            listDataType = SerializableDataType.list(dataType);
+        }
+        return listDataType;
+    }
+
     public SerializableDataType<T> registryDataType() {
         if(registryDataType == null) {
             registryDataType = createRegistryDataType();
         }
         return registryDataType;
+    }
+
+    public SerializableDataType<Supplier<T>> lazyDataType() {
+        if(lazyDataType == null) {
+            lazyDataType = createLazyDataType();
+        }
+        return lazyDataType;
+    }
+
+    public SerializableDataType<Supplier<T>> createLazyDataType() {
+        return SerializableDataType.wrap(ClassUtil.castClass(Supplier.class),
+            SerializableDataTypes.IDENTIFIER, lazy -> getId(lazy.get()), id -> () -> get(id));
     }
 
     private SerializableDataType<T> createDataType() {

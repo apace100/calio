@@ -10,6 +10,7 @@ import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
+import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.apace100.calio.util.StatusEffectChance;
 import net.minecraft.block.Block;
@@ -17,6 +18,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Material;
 import net.minecraft.client.render.CameraSubmersionType;
 import net.minecraft.command.argument.BlockArgumentParser;
+import net.minecraft.command.argument.NbtPathArgumentType;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
 import net.minecraft.entity.EntityType;
@@ -677,4 +679,7 @@ public final class SerializableDataTypes {
     ));
 
     public static final SerializableDataType<List<Material>> MATERIALS = SerializableDataType.list(MATERIAL);
+
+    public static final SerializableDataType<ArgumentWrapper<NbtPathArgumentType.NbtPath>> NBT_PATH =
+        SerializableDataType.argumentType(NbtPathArgumentType.nbtPath());
 }

@@ -94,6 +94,12 @@ public class SerializableData {
         return instance;
     }
 
+    public SerializableData copy() {
+        SerializableData copy = new SerializableData();
+        copy.dataFields.putAll(dataFields);
+        return copy;
+    }
+
     public class Instance {
         private HashMap<String, Object> data = new HashMap<>();
 
