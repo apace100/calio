@@ -10,9 +10,9 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
 import io.github.apace100.calio.util.ArgumentWrapper;
-import io.github.apace100.calio.util.IdentifiedTag;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.tag.Tag;
+import net.minecraft.tag.TagKey;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
@@ -256,15 +256,18 @@ public class SerializableDataType<T> {
             (json) -> fromFunction.apply(base.read(json)));
     }
 
-    public static <T> SerializableDataType<Tag<T>> tag(RegistryKey<? extends Registry<T>> registryKey) {
-        return SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-            item -> {
-                if(item instanceof Tag.Identified<T>) {
-                    return ((Tag.Identified<T>)item).getId();
-                }
-                return Calio.getTagManager().getTagId(registryKey, item, () -> new JsonSyntaxException("Unknown tag"));
-            },
-            id -> new IdentifiedTag<>(registryKey, id));
+    public static <T> SerializableDataType<TagKey<T>> tag(RegistryKey<? extends Registry<T>> registryKey) {
+        return SerializableDataType.wrap(ClassUtil.castClass(TagKey.class), SerializableDataTypes.IDENTIFIER,
+            TagKey::id,
+            id -> TagKey.of(registryKey, id));
+    }
+
+    public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryKeyRegistry) {
+        return SerializableDataType.wrap(
+            ClassUtil.castClass(RegistryKey.class),
+            SerializableDataTypes.IDENTIFIER,
+            RegistryKey::getValue, identifier -> RegistryKey.of(registryKeyRegistry, identifier)
+        );
     }
 
     public static <T extends Enum<T>> SerializableDataType<EnumSet<T>> enumSet(Class<T> enumClass, SerializableDataType<T> enumDataType) {

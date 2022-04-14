@@ -1,7 +1,6 @@
 package io.github.apace100.calio.registry;
 
 import com.google.gson.*;
-import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.data.MultiJsonDataLoader;
 import io.github.apace100.calio.data.SerializableData;
@@ -38,8 +37,10 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
     private final HashMap<Identifier, T> idToEntry = new HashMap<>();
     private final HashMap<T, Identifier> entryToId = new HashMap<>();
+    private final HashMap<Identifier, T> staticEntries = new HashMap<>();
 
     private final String factoryFieldName;
+    private final DataObjectFactory<T> defaultFactory;
     private final HashMap<Identifier, DataObjectFactory<T>> factoriesById = new HashMap<>();
     private final HashMap<DataObjectFactory<T>, Identifier> factoryToId = new HashMap<>();
 
@@ -50,15 +51,16 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
     private final Function<JsonElement, JsonElement> jsonPreprocessor;
 
-    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, Function<JsonElement, JsonElement> jsonPreprocessor) {
+    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor) {
         this.registryId = registryId;
         this.objectClass = objectClass;
         this.factoryFieldName = factoryFieldName;
+        this.defaultFactory = defaultFactory;
         this.jsonPreprocessor = jsonPreprocessor;
     }
 
-    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, Function<JsonElement, JsonElement> jsonPreprocessor, String dataFolder, boolean useLoadingPriority, BiConsumer<Identifier, Exception> errorHandler) {
-        this(registryId, objectClass, factoryFieldName, jsonPreprocessor);
+    private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor, String dataFolder, boolean useLoadingPriority, BiConsumer<Identifier, Exception> errorHandler) {
+        this(registryId, objectClass, factoryFieldName, defaultFactory, jsonPreprocessor);
         Loader loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
         OrderedResourceListeners.register(loader).complete();
     }
@@ -75,6 +77,10 @@ public class DataObjectRegistry<T extends DataObject<T>> {
         return factoriesById.get(id);
     }
 
+    public Identifier getFactoryId(DataObjectFactory<T> factory) {
+        return factoryToId.get(factory);
+    }
+
     public void registerFactory(Identifier id, DataObjectFactory<T> factory) {
         factoriesById.put(id, factory);
         factoryToId.put(factory, id);
@@ -85,9 +91,20 @@ public class DataObjectRegistry<T extends DataObject<T>> {
         entryToId.put(entry, id);
     }
 
+    public void registerStatic(Identifier id, T entry) {
+        staticEntries.put(id, entry);
+        register(id, entry);
+    }
+
     public void write(PacketByteBuf buf) {
-        buf.writeInt(idToEntry.size());
+        buf.writeInt(idToEntry.size() - staticEntries.size());
         for(Map.Entry<Identifier, T> entry : idToEntry.entrySet()) {
+            if(staticEntries.containsKey(entry.getKey())) {
+                // Static entries are added from code by mods,
+                // so they will not be synced to clients (as
+                // clients are assumed to have the same mods).
+                continue;
+            }
             buf.writeIdentifier(entry.getKey());
             writeDataObject(buf, entry.getValue());
         }
@@ -135,21 +152,30 @@ public class DataObjectRegistry<T extends DataObject<T>> {
                     "\": expected a json object.");
         }
         JsonObject jsonObject = element.getAsJsonObject();
-        String type = JsonHelper.getString(jsonObject, factoryFieldName);
-        Identifier factoryId = null;
-        try {
-            factoryId = new Identifier(type);
-        } catch (InvalidIdentifierException e) {
-            throw new JsonParseException(
-                "Could not read data object of type \"" + registryId +
-                    "\": invalid factory identifier (id: \"" + factoryId + "\").", e);
+        if(!jsonObject.has(factoryFieldName) && defaultFactory == null) {
+            throw new JsonParseException("Could not read data object of type \"" + registryId +
+                "\": no factory identifier provided (expected key: \"" + factoryFieldName + "\").");
         }
-        if(!factoriesById.containsKey(factoryId)) {
-            throw new JsonParseException(
-                "Could not read data object of type \"" + registryId +
-                    "\": unknown factory (id: \"" + factoryId + "\").");
+        DataObjectFactory<T> factory;
+        if(jsonObject.has(factoryFieldName)) {
+            String type = JsonHelper.getString(jsonObject, factoryFieldName);
+            Identifier factoryId = null;
+            try {
+                factoryId = new Identifier(type);
+            } catch (InvalidIdentifierException e) {
+                throw new JsonParseException(
+                    "Could not read data object of type \"" + registryId +
+                        "\": invalid factory identifier (id: \"" + factoryId + "\").", e);
+            }
+            if(!factoriesById.containsKey(factoryId)) {
+                throw new JsonParseException(
+                    "Could not read data object of type \"" + registryId +
+                        "\": unknown factory (id: \"" + factoryId + "\").");
+            }
+            factory = getFactory(factoryId);
+        } else {
+            factory = defaultFactory;
         }
-        DataObjectFactory<T> factory = getFactory(factoryId);
         SerializableData.Instance data = factory.getData().read(jsonObject);
         return factory.fromData(data);
     }
@@ -164,6 +190,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
     public void clear() {
         idToEntry.clear();
         entryToId.clear();
+        staticEntries.forEach(this::register);
     }
 
     @Nullable
@@ -293,6 +320,7 @@ public class DataObjectRegistry<T extends DataObject<T>> {
         private final Class<T> objectClass;
         private String factoryFieldName = "type";
         private boolean autoSync = false;
+        private DataObjectFactory<T> defaultFactory;
         private Function<JsonElement, JsonElement> jsonPreprocessor;
         private String dataFolder;
         private boolean readFromData = false;
@@ -309,6 +337,11 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
         public Builder<T> autoSync() {
             this.autoSync = true;
+            return this;
+        }
+
+        public Builder<T> defaultFactory(DataObjectFactory<T> factory) {
+            this.defaultFactory = factory;
             return this;
         }
 
@@ -337,9 +370,9 @@ public class DataObjectRegistry<T extends DataObject<T>> {
         public DataObjectRegistry<T> buildAndRegister() {
             DataObjectRegistry<T> registry;
             if(readFromData) {
-                registry = new DataObjectRegistry<>(registryId, objectClass, factoryFieldName, jsonPreprocessor, dataFolder, useLoadingPriority, errorHandler);
+                registry = new DataObjectRegistry<>(registryId, objectClass, factoryFieldName, defaultFactory, jsonPreprocessor, dataFolder, useLoadingPriority, errorHandler);
             } else {
-                registry = new DataObjectRegistry<>(registryId, objectClass, factoryFieldName, jsonPreprocessor);
+                registry = new DataObjectRegistry<>(registryId, objectClass, factoryFieldName, defaultFactory, jsonPreprocessor);
             }
             REGISTRIES.put(registryId, registry);
             if(autoSync) {

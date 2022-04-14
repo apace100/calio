@@ -11,7 +11,6 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.ArgumentWrapper;
-import io.github.apace100.calio.util.IdentifiedTag;
 import io.github.apace100.calio.util.StatusEffectChance;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -41,9 +40,7 @@ import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.sound.SoundEvent;
-import net.minecraft.tag.Tag;
-import net.minecraft.tag.TagGroup;
-import net.minecraft.tag.TagManager;
+import net.minecraft.tag.*;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
 import net.minecraft.util.math.Direction;
@@ -300,13 +297,13 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
-    public static final SerializableDataType<Tag<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_KEY);
+    public static final SerializableDataType<TagKey<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_KEY);
 
-    public static final SerializableDataType<Tag<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_KEY);
+    public static final SerializableDataType<TagKey<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_KEY);
 
-    public static final SerializableDataType<Tag<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_KEY);
+    public static final SerializableDataType<TagKey<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_KEY);
 
-    public static final SerializableDataType<Tag<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_KEY);
+    public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_KEY);
 
     public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(List.class),
         new SerializableData()
@@ -319,8 +316,8 @@ public final class SerializableDataTypes {
                 throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
             }
             if(tagPresent) {
-                Tag<Item> tag = dataInstance.get("tag");
-                return List.copyOf(tag.values());
+                TagKey<Item> tag = dataInstance.get("tag");
+                return Registry.ITEM.getOrCreateEntryList(tag).stream().map(entry -> entry.value()).toList();
             } else {
                 return List.of((Item)dataInstance.get("item"));
             }
@@ -329,16 +326,14 @@ public final class SerializableDataTypes {
             if(items.size() == 1) {
                 inst.set("item", items.get(0));
             } else {
-                TagManager tagManager = Calio.getTagManager();
-                TagGroup<Item> tagGroup = tagManager.getOrCreateTagGroup(Registry.ITEM_KEY);
-                Collection<Identifier> possibleTags = tagGroup.getTagsFor(items.get(0));
+                Collection<TagKey<Item>> possibleTags = items.get(0).getRegistryEntry().streamTags().toList();
                 for(int i = 1; i < items.size() && possibleTags.size() > 1; i++) {
-                    possibleTags.removeAll(tagGroup.getTagsFor(items.get(i)));
+                    possibleTags.removeAll(items.get(i).getRegistryEntry().streamTags().toList());
                 }
                 if(possibleTags.size() != 1) {
                     throw new IllegalStateException("Couldn't transform item list to a single tag");
                 }
-                inst.set("tag", tagGroup.getTag(possibleTags.stream().findFirst().get()));
+                inst.set("tag", possibleTags.stream().findFirst().get());
             }
             return inst;
         });
@@ -477,11 +472,7 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 
-    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.wrap(
-        ClassUtil.castClass(RegistryKey.class),
-        SerializableDataTypes.IDENTIFIER,
-        RegistryKey::getValue, identifier -> RegistryKey.of(Registry.WORLD_KEY, identifier)
-    );
+    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(Registry.WORLD_KEY);
 
     public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
         (buffer, recipe) -> {
@@ -511,9 +502,7 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<GameEvent>> GAME_EVENTS =
         SerializableDataType.list(GAME_EVENT);
 
-    public static final SerializableDataType<Tag<GameEvent>> GAME_EVENT_TAG = SerializableDataType.wrap(ClassUtil.castClass(Tag.class), SerializableDataTypes.IDENTIFIER,
-        tag -> Calio.getTagManager().getTagId(Registry.GAME_EVENT_KEY, tag, RuntimeException::new),
-        id -> new IdentifiedTag<>(Registry.GAME_EVENT_KEY, id));
+    public static final SerializableDataType<TagKey<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_KEY);
 
     public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
 

@@ -1,18 +1,13 @@
 package io.github.apace100.calio;
 
 import io.github.apace100.calio.mixin.CriteriaRegistryInvoker;
-import io.github.apace100.calio.util.TagManagerGetter;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.tag.Tag;
-import net.minecraft.tag.TagManager;
-import net.minecraft.util.Identifier;
+import net.minecraft.tag.TagKey;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 
 public class Calio implements ModInitializer {
-
-	static TagManagerGetter tagManagerGetter;
 
 	@Override
 	public void onInitialize() {
@@ -50,34 +45,23 @@ public class Calio implements ModInitializer {
 		}
 	}
 
-	public static TagManager getTagManager() {
-		return tagManagerGetter.get();
+	public static <T> boolean areTagsEqual(RegistryKey<? extends Registry<T>> registryKey, TagKey<T> tag1, TagKey<T> tag2) {
+		return areTagsEqual(tag1, tag2);
 	}
 
-	public static <T> boolean areTagsEqual(RegistryKey<? extends Registry<T>> registryKey, Tag<T> tag1, Tag<T> tag2) {
+	public static <T> boolean areTagsEqual(TagKey<T> tag1, TagKey<T> tag2) {
 		if(tag1 == tag2) {
 			return true;
 		}
 		if(tag1 == null || tag2 == null) {
 			return false;
 		}
-		TagManager tagManager = Calio.getTagManager();
-		try {
-			Identifier id1;
-			if(tag1 instanceof Tag.Identified) {
-				id1 = ((Tag.Identified)tag1).getId();
-			} else {
-				id1 = tagManager.getTagId(registryKey, tag1, RuntimeException::new);
-			}
-			Identifier id2;
-			if(tag2 instanceof Tag.Identified) {
-				id2 = ((Tag.Identified)tag2).getId();
-			} else {
-				id2 = tagManager.getTagId(registryKey, tag2, RuntimeException::new);
-			}
-			return id1.equals(id2);
-		} catch (Exception e) {
+		if(!tag1.registry().equals(tag2.registry())) {
 			return false;
 		}
+		if(!tag1.id().equals(tag2.id())) {
+			return false;
+		}
+		return true;
 	}
 }
