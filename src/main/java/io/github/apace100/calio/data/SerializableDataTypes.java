@@ -305,7 +305,7 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_KEY);
 
-    public static final SerializableDataType<List<Item>> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(List.class),
+    public static final SerializableDataType<Ingredient.Entry> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Entry.class),
         new SerializableData()
             .add("item", ITEM, null)
             .add("tag", ITEM_TAG, null),
@@ -317,28 +317,13 @@ public final class SerializableDataTypes {
             }
             if(tagPresent) {
                 TagKey<Item> tag = dataInstance.get("tag");
-                return Registry.ITEM.getOrCreateEntryList(tag).stream().map(entry -> entry.value()).toList();
+                return new Ingredient.TagEntry(tag);
             } else {
-                return List.of((Item)dataInstance.get("item"));
+                return new Ingredient.StackEntry(new ItemStack((Item)dataInstance.get("item")));
             }
-        }, (data, items) -> {
-            SerializableData.Instance inst = data.new Instance();
-            if(items.size() == 1) {
-                inst.set("item", items.get(0));
-            } else {
-                Collection<TagKey<Item>> possibleTags = items.get(0).getRegistryEntry().streamTags().toList();
-                for(int i = 1; i < items.size() && possibleTags.size() > 1; i++) {
-                    possibleTags.removeAll(items.get(i).getRegistryEntry().streamTags().toList());
-                }
-                if(possibleTags.size() != 1) {
-                    throw new IllegalStateException("Couldn't transform item list to a single tag");
-                }
-                inst.set("tag", possibleTags.stream().findFirst().get());
-            }
-            return inst;
-        });
+        }, (data, entry) -> data.read(entry.toJson()));
 
-    public static final SerializableDataType<List<List<Item>>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
+    public static final SerializableDataType<List<Ingredient.Entry>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
     // An alternative version of an ingredient deserializer which allows `minecraft:air`
     public static final SerializableDataType<Ingredient> INGREDIENT = new SerializableDataType<>(
@@ -346,10 +331,8 @@ public final class SerializableDataTypes {
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
         jsonElement -> {
-            List<List<Item>> itemLists = INGREDIENT_ENTRIES.read(jsonElement);
-            List<ItemStack> items = new LinkedList<>();
-            itemLists.forEach(itemList -> itemList.forEach(item -> items.add(new ItemStack(item))));
-            return Ingredient.ofStacks(items.stream());
+            List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
+            return Ingredient.ofEntries(entryList.stream());
         });
 
     // The regular vanilla Minecraft ingredient.
