@@ -31,6 +31,10 @@ dependencies {
 	// You may need to force-disable transitiveness on them.
 }
 
+loom {
+	accessWidenerPath = file("src/main/resources/calio.accesswidener")
+}
+
 processResources {
 	inputs.property "version", project.version
 
