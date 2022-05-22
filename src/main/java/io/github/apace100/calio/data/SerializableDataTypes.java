@@ -654,4 +654,10 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<ArgumentWrapper<NbtPathArgumentType.NbtPath>> NBT_PATH =
         SerializableDataType.argumentType(NbtPathArgumentType.nbtPath());
+
+    public static final SerializableDataType<RaycastContext.ShapeType> RAYCAST_SHAPE_TYPE = SerializableDataType.enumValue(RaycastContext.ShapeType.class);
+
+    public static final SerializableDataType<RaycastContext.FluidHandling> RAYCAST_FLUID_HANDLING = SerializableDataType.enumValue(RaycastContext.FluidHandling.class);
+
+    public static final SerializableDataType<Explosion.DestructionType> EXPLOSION_DESTRUCTION_TYPE = SerializableDataType.enumValue(Explosion.DestructionType.class);
 }
