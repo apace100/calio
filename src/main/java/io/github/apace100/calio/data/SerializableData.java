@@ -1,5 +1,6 @@
 package io.github.apace100.calio.data;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -19,32 +20,32 @@ public class SerializableData {
     // Should be set to the current path of the file that is being read. Allows using * in identifiers.
     public static String CURRENT_PATH;
 
-    private final LinkedHashMap<String, Entry<?>> dataFields = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Field<?>> dataFields = new LinkedHashMap<>();
 
     public SerializableData add(String name, SerializableDataType<?> type) {
-        dataFields.put(name, new Entry<>(type));
+        dataFields.put(name, new Field<>(type));
         return this;
     }
 
     public <T> SerializableData add(String name, SerializableDataType<T> type, T defaultValue) {
-        dataFields.put(name, new Entry<>(type, defaultValue));
+        dataFields.put(name, new Field<>(type, defaultValue));
         return this;
     }
 
     public <T> SerializableData addFunctionedDefault(String name, SerializableDataType<T> type, Function<Instance, T> defaultFunction) {
-        dataFields.put(name, new Entry<>(type, defaultFunction));
+        dataFields.put(name, new Field<>(type, defaultFunction));
         return this;
     }
 
     public void write(PacketByteBuf buffer, Instance instance) {
-        dataFields.forEach((name, entry) -> {
+        dataFields.forEach((name, field) -> {
             try {
                 boolean isPresent = instance.get(name) != null;
-                if(entry.hasDefault && entry.defaultValue == null) {
+                if(field.hasDefault && field.defaultValue == null) {
                     buffer.writeBoolean(isPresent);
                 }
                 if(isPresent) {
-                    entry.dataType.send(buffer, instance.get(name));
+                    field.dataType.send(buffer, instance.get(name));
                 }
             } catch(DataException e) {
                 throw e.prepend(name);
@@ -56,13 +57,13 @@ public class SerializableData {
 
     public Instance read(PacketByteBuf buffer) {
         Instance instance = new Instance();
-        dataFields.forEach((name, entry) -> {
+        dataFields.forEach((name, field) -> {
             try {
                 boolean isPresent = true;
-                if(entry.hasDefault && entry.defaultValue == null) {
+                if(field.hasDefault && field.defaultValue == null) {
                     isPresent = buffer.readBoolean();
                 }
-                instance.set(name, isPresent ? entry.dataType.receive(buffer) : null);
+                instance.set(name, isPresent ? field.dataType.receive(buffer) : null);
             } catch (DataException e) {
                 throw e.prepend(name);
             } catch (Exception e) {
@@ -74,16 +75,16 @@ public class SerializableData {
 
     public Instance read(JsonObject jsonObject) {
         Instance instance = new Instance();
-        dataFields.forEach((name, entry) -> {
+        dataFields.forEach((name, field) -> {
             try {
                 if (!jsonObject.has(name)) {
-                    if (entry.hasDefault()) {
-                        instance.set(name, entry.getDefault(instance));
+                    if (field.hasDefault()) {
+                        instance.set(name, field.getDefault(instance));
                     } else {
                         throw new JsonSyntaxException("JSON requires field: " + name);
                     }
                 } else {
-                    instance.set(name, entry.dataType.read(jsonObject.get(name)));
+                    instance.set(name, field.dataType.read(jsonObject.get(name)));
                 }
             } catch (DataException e) {
                 throw e.prepend(name);
@@ -100,6 +101,18 @@ public class SerializableData {
         return copy;
     }
 
+    public Iterable<String> getFieldNames() {
+        return ImmutableSet.copyOf(dataFields.keySet());
+    }
+
+    public Field<?> getField(String fieldName) {
+        if(!dataFields.containsKey(fieldName)) {
+            throw new IllegalArgumentException("SerializableData contains no field with name \"" + fieldName + "\".");
+        } else {
+            return dataFields.get(fieldName);
+        }
+    }
+
     public class Instance {
         private HashMap<String, Object> data = new HashMap<>();
 
@@ -109,8 +122,8 @@ public class SerializableData {
 
         public boolean isPresent(String name) {
             if(dataFields.containsKey(name)) {
-                Entry<?> entry = dataFields.get(name);
-                if(entry.hasDefault && entry.defaultValue == null) {
+                Field<?> field = dataFields.get(name);
+                if(field.hasDefault && field.defaultValue == null) {
                     return get(name) != null;
                 }
             }
@@ -165,14 +178,14 @@ public class SerializableData {
         }
     }
 
-    private static class Entry<T> {
-        public final SerializableDataType<T> dataType;
-        public final T defaultValue;
+    public static class Field<T> {
+        private final SerializableDataType<T> dataType;
+        private final T defaultValue;
         private final Function<Instance, T> defaultFunction;
         private final boolean hasDefault;
         private final boolean hasDefaultFunction;
 
-        public Entry(SerializableDataType<T> dataType) {
+        public Field(SerializableDataType<T> dataType) {
             this.dataType = dataType;
             this.defaultValue = null;
             this.defaultFunction = null;
@@ -180,7 +193,7 @@ public class SerializableData {
             this.hasDefaultFunction = false;
         }
 
-        public Entry(SerializableDataType<T> dataType, T defaultValue) {
+        public Field(SerializableDataType<T> dataType, T defaultValue) {
             this.dataType = dataType;
             this.defaultValue = defaultValue;
             this.defaultFunction = null;
@@ -188,7 +201,7 @@ public class SerializableData {
             this.hasDefaultFunction = false;
         }
 
-        public Entry(SerializableDataType<T> dataType, Function<Instance, T> defaultFunction) {
+        public Field(SerializableDataType<T> dataType, Function<Instance, T> defaultFunction) {
             this.dataType = dataType;
             this.defaultValue = null;
             this.defaultFunction = defaultFunction;
@@ -208,6 +221,10 @@ public class SerializableData {
             } else {
                 throw new IllegalStateException("Tried to access default value of serializable data entry, when no default was provided.");
             }
+        }
+
+        public SerializableDataType<T> getDataType() {
+            return dataType;
         }
     }
 }
