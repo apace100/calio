@@ -19,7 +19,8 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "io.github.apace100.calio.Calio"
+      "io.github.apace100.calio.Calio",
+      "io.github.apace100.calio.resource.OrderedResourceListener"
     ],
     "client": [
       "io.github.apace100.calio.CalioClient"

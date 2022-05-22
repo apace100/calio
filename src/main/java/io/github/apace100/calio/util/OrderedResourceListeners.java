@@ -14,6 +14,7 @@ import java.util.Set;
  * Allows registering data resource listeners in a specified order, to prevent problems
  * due to mod loading order and inter-mod data dependencies.
  */
+@Deprecated
 public final class OrderedResourceListeners {
 
     private static final Set<Identifier> finalizedRegistrations = new HashSet<>();
@@ -54,6 +55,7 @@ public final class OrderedResourceListeners {
 
         private final IdentifiableResourceReloadListener resourceReloadListener;
         private final Set<Identifier> afterSet = new HashSet<>();
+        private final Set<Identifier> beforeSet = new HashSet<>();
         private boolean isCompleted;
 
         private Registration(IdentifiableResourceReloadListener resourceReloadListener) {
@@ -66,6 +68,15 @@ public final class OrderedResourceListeners {
                     "Can't add a resource reload listener registration dependency after it was completed.");
             }
             afterSet.add(identifier);
+            return this;
+        }
+
+        public Registration before(Identifier identifier) {
+            if(isCompleted) {
+                throw new IllegalStateException(
+                    "Can't add a resource reload listener registration dependency after it was completed.");
+            }
+            beforeSet.add(identifier);
             return this;
         }
 

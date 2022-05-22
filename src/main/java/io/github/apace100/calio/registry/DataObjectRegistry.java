@@ -51,6 +51,8 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
     private final Function<JsonElement, JsonElement> jsonPreprocessor;
 
+    private Loader loader;
+
     private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor) {
         this.registryId = registryId;
         this.objectClass = objectClass;
@@ -61,8 +63,17 @@ public class DataObjectRegistry<T extends DataObject<T>> {
 
     private DataObjectRegistry(Identifier registryId, Class<T> objectClass, String factoryFieldName, DataObjectFactory<T> defaultFactory, Function<JsonElement, JsonElement> jsonPreprocessor, String dataFolder, boolean useLoadingPriority, BiConsumer<Identifier, Exception> errorHandler) {
         this(registryId, objectClass, factoryFieldName, defaultFactory, jsonPreprocessor);
-        Loader loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
-        OrderedResourceListeners.register(loader).complete();
+        loader = new Loader(dataFolder, useLoadingPriority, errorHandler);
+    }
+
+    /**
+     * Returns the resource reload listener which loads the data from datapacks.
+     * This is not registered automatically, thus you need to register it, preferably
+     * in an ordered resource listener entrypoint.
+     * @return
+     */
+    public IdentifiableResourceReloadListener getLoader() {
+        return loader;
     }
 
     public Identifier getRegistryId() {
