@@ -38,6 +38,10 @@ public class OrderedResourceListener implements ModInitializer {
             this.resourceReloadListener = listener;
         }
 
+        public Registration after(String identifier) {
+            return after(new Identifier(identifier));
+        }
+
         public Registration after(Identifier identifier) {
             if(isCompleted) {
                 throw new IllegalStateException(
@@ -45,6 +49,10 @@ public class OrderedResourceListener implements ModInitializer {
             }
             dependencies.add(identifier);
             return this;
+        }
+
+        public Registration before(String identifier) {
+            return before(new Identifier(identifier));
         }
 
         public Registration before(Identifier identifier) {
