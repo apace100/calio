@@ -127,7 +127,7 @@ public class SerializableData {
                     return get(name) != null;
                 }
             }
-            return true;
+            return data.containsKey(name);
         }
 
         public <T> void ifPresent(String name, Consumer<T> consumer) {

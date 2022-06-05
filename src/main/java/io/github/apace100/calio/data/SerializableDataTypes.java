@@ -9,6 +9,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
+import io.github.apace100.calio.data.SerializableData.Instance;
 import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.StatusEffectChance;
@@ -40,6 +41,8 @@ import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.sound.SoundEvent;
+import net.minecraft.stat.Stat;
+import net.minecraft.stat.StatType;
 import net.minecraft.tag.*;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
@@ -49,6 +52,7 @@ import net.minecraft.util.registry.Registry;
 import net.minecraft.util.registry.RegistryKey;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
 import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.explosion.Explosion;
 
@@ -348,7 +352,7 @@ public final class SerializableDataTypes {
         BlockArgumentParser::stringifyBlockState,
         string -> {
             try {
-                return (new BlockArgumentParser(new StringReader(string), false)).parse(false).getBlockState();
+                return BlockArgumentParser.block(Registry.BLOCK, string, false).blockState();
             } catch (CommandSyntaxException e) {
                 throw new JsonParseException(e);
             }
@@ -432,7 +436,7 @@ public final class SerializableDataTypes {
             .add("amount", SerializableDataTypes.INT, 1)
             .add("tag", NBT, null),
         (data) ->  {
-            ItemStack stack = new ItemStack(data.get("item"), data.getInt("amount"));
+            ItemStack stack = new ItemStack((Item)data.get("item"), data.getInt("amount"));
             if(data.isPresent("tag")) {
                 stack.setNbt(data.get("tag"));
             }
@@ -659,5 +663,28 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<RaycastContext.FluidHandling> RAYCAST_FLUID_HANDLING = SerializableDataType.enumValue(RaycastContext.FluidHandling.class);
 
-    public static final SerializableDataType<Explosion.DestructionType> EXPLOSION_DESTRUCTION_TYPE = SerializableDataType.enumValue(Explosion.DestructionType.class);
+    public static final SerializableDataType<Stat<?>> STAT = SerializableDataType.compound(ClassUtil.castClass(Stat.class),
+        new SerializableData()
+            .add("type", SerializableDataType.registry(ClassUtil.castClass(StatType.class), Registry.STAT_TYPE))
+            .add("id", SerializableDataTypes.IDENTIFIER),
+        data -> {
+            StatType statType = data.get("type");
+            Registry<?> statRegistry = statType.getRegistry();
+            Identifier statId = data.get("id");
+            if(statRegistry.containsId(statId)) {
+                Object statObject = statRegistry.get(statId);
+                return statType.getOrCreateStat(statObject);
+            }
+            throw new IllegalArgumentException("Desired stat \"" + statId + "\" does not exist in stat type ");
+        },
+        (data, stat) -> {
+            SerializableData.Instance inst = data.new Instance();
+            inst.set("type", stat.getType());
+            Registry reg = stat.getType().getRegistry();
+            Identifier statId = reg.getId(stat.getValue());
+            inst.set("id", statId);
+            return inst;
+        });
+
+    public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(Registry.BIOME_KEY);
 }
