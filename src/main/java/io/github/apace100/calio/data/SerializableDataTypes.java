@@ -40,16 +40,18 @@ import net.minecraft.particle.ParticleType;
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeSerializer;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.stat.Stat;
 import net.minecraft.stat.StatType;
-import net.minecraft.tag.*;
+import net.minecraft.registry.tag.*;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.util.registry.RegistryKey;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -212,7 +214,7 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Identifier>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
 
-    public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, Registry.ENCHANTMENT);
+    public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, Registries.ENCHANTMENT);
 
     public static final SerializableDataType<DamageSource> DAMAGE_SOURCE = SerializableDataType.compound(DamageSource.class, new SerializableData()
             .add("name", STRING)
@@ -261,7 +263,7 @@ public final class SerializableDataTypes {
             return inst;
         });
 
-    public static final SerializableDataType<EntityAttribute> ATTRIBUTE = SerializableDataType.registry(EntityAttribute.class, Registry.ATTRIBUTE);
+    public static final SerializableDataType<EntityAttribute> ATTRIBUTE = SerializableDataType.registry(EntityAttribute.class, Registries.ATTRIBUTE);
 
     public static final SerializableDataType<EntityAttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(EntityAttributeModifier.Operation.class);
 
@@ -285,9 +287,9 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<EntityAttributeModifier>> ATTRIBUTE_MODIFIERS =
         SerializableDataType.list(ATTRIBUTE_MODIFIER);
 
-    public static final SerializableDataType<Item> ITEM = SerializableDataType.registry(Item.class, Registry.ITEM);
+    public static final SerializableDataType<Item> ITEM = SerializableDataType.registry(Item.class, Registries.ITEM);
 
-    public static final SerializableDataType<StatusEffect> STATUS_EFFECT = SerializableDataType.registry(StatusEffect.class, Registry.STATUS_EFFECT);
+    public static final SerializableDataType<StatusEffect> STATUS_EFFECT = SerializableDataType.registry(StatusEffect.class, Registries.STATUS_EFFECT);
 
     public static final SerializableDataType<List<StatusEffect>> STATUS_EFFECTS =
         SerializableDataType.list(STATUS_EFFECT);
@@ -301,13 +303,13 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
 
-    public static final SerializableDataType<TagKey<Item>> ITEM_TAG = SerializableDataType.tag(Registry.ITEM_KEY);
+    public static final SerializableDataType<TagKey<Item>> ITEM_TAG = SerializableDataType.tag(RegistryKeys.ITEM);
 
-    public static final SerializableDataType<TagKey<Fluid>> FLUID_TAG = SerializableDataType.tag(Registry.FLUID_KEY);
+    public static final SerializableDataType<TagKey<Fluid>> FLUID_TAG = SerializableDataType.tag(RegistryKeys.FLUID);
 
-    public static final SerializableDataType<TagKey<Block>> BLOCK_TAG = SerializableDataType.tag(Registry.BLOCK_KEY);
+    public static final SerializableDataType<TagKey<Block>> BLOCK_TAG = SerializableDataType.tag(RegistryKeys.BLOCK);
 
-    public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(Registry.ENTITY_TYPE_KEY);
+    public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(RegistryKeys.ENTITY_TYPE);
 
     public static final SerializableDataType<Ingredient.Entry> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Entry.class),
         new SerializableData()
@@ -346,13 +348,13 @@ public final class SerializableDataTypes {
         Ingredient::fromPacket,
         Ingredient::fromJson);
 
-    public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registry.BLOCK);
+    public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registries.BLOCK);
 
     public static final SerializableDataType<BlockState> BLOCK_STATE = SerializableDataType.wrap(BlockState.class, STRING,
         BlockArgumentParser::stringifyBlockState,
         string -> {
             try {
-                return BlockArgumentParser.block(Registry.BLOCK, string, false).blockState();
+                return BlockArgumentParser.block(Registries.BLOCK.getReadOnlyWrapper(), string, false).blockState();
             } catch (CommandSyntaxException e) {
                 throw new JsonParseException(e);
             }
@@ -369,11 +371,11 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<EquipmentSlot> EQUIPMENT_SLOT = SerializableDataType.enumValue(EquipmentSlot.class);
 
-    public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, Registry.SOUND_EVENT);
+    public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, Registries.SOUND_EVENT);
 
-    public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), Registry.ENTITY_TYPE);
+    public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), Registries.ENTITY_TYPE);
 
-    public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), Registry.PARTICLE_TYPE);
+    public static final SerializableDataType<ParticleType<?>> PARTICLE_TYPE = SerializableDataType.registry(ClassUtil.castClass(ParticleType.class), Registries.PARTICLE_TYPE);
 
     public static final SerializableDataType<ParticleEffect> PARTICLE_EFFECT = SerializableDataType.compound(ParticleEffect.class,
         new SerializableData()
@@ -459,18 +461,18 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 
-    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(Registry.WORLD_KEY);
+    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(RegistryKeys.WORLD);
 
     public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
         (buffer, recipe) -> {
-            buffer.writeIdentifier(Registry.RECIPE_SERIALIZER.getId(recipe.getSerializer()));
+            buffer.writeIdentifier(Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()));
             buffer.writeIdentifier(recipe.getId());
             recipe.getSerializer().write(buffer, recipe);
         },
         (buffer) -> {
             Identifier recipeSerializerId = buffer.readIdentifier();
             Identifier recipeId = buffer.readIdentifier();
-            RecipeSerializer<?> serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
+            RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
             return serializer.read(recipeId, buffer);
         },
         (jsonElement) -> {
@@ -480,18 +482,18 @@ public final class SerializableDataTypes {
             JsonObject json = jsonElement.getAsJsonObject();
             Identifier recipeSerializerId = Identifier.tryParse(JsonHelper.getString(json, "type"));
             Identifier recipeId = Identifier.tryParse(JsonHelper.getString(json, "id"));
-            RecipeSerializer<?> serializer = Registry.RECIPE_SERIALIZER.get(recipeSerializerId);
+            RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
             return serializer.read(recipeId, json);
         });
 
-    public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registry.GAME_EVENT);
+    public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registries.GAME_EVENT);
 
     public static final SerializableDataType<List<GameEvent>> GAME_EVENTS =
         SerializableDataType.list(GAME_EVENT);
 
-    public static final SerializableDataType<TagKey<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(Registry.GAME_EVENT_KEY);
+    public static final SerializableDataType<TagKey<GameEvent>> GAME_EVENT_TAG = SerializableDataType.tag(RegistryKeys.GAME_EVENT);
 
-    public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registry.FLUID);
+    public static final SerializableDataType<Fluid> FLUID = SerializableDataType.registry(Fluid.class, Registries.FLUID);
 
     public static final SerializableDataType<CameraSubmersionType> CAMERA_SUBMERSION_TYPE = SerializableDataType.enumValue(CameraSubmersionType.class);
 
@@ -665,7 +667,7 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<Stat<?>> STAT = SerializableDataType.compound(ClassUtil.castClass(Stat.class),
         new SerializableData()
-            .add("type", SerializableDataType.registry(ClassUtil.castClass(StatType.class), Registry.STAT_TYPE))
+            .add("type", SerializableDataType.registry(ClassUtil.castClass(StatType.class), Registries.STAT_TYPE))
             .add("id", SerializableDataTypes.IDENTIFIER),
         data -> {
             StatType statType = data.get("type");
@@ -686,5 +688,5 @@ public final class SerializableDataTypes {
             return inst;
         });
 
-    public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(Registry.BIOME_KEY);
+    public static final SerializableDataType<TagKey<Biome>> BIOME_TAG = SerializableDataType.tag(RegistryKeys.BIOME);
 }
