@@ -3,9 +3,9 @@ package io.github.apace100.calio;
 import io.github.apace100.calio.mixin.CriteriaRegistryInvoker;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.tag.TagKey;
-import net.minecraft.util.registry.Registry;
-import net.minecraft.util.registry.RegistryKey;
+import net.minecraft.registry.tag.TagKey;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
 
 public class Calio implements ModInitializer {
 
