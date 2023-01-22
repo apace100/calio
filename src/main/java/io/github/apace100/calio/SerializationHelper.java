@@ -7,9 +7,10 @@ import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
-import net.minecraft.util.registry.Registry;
+import net.minecraft.registry.Registry;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -52,7 +53,7 @@ public class SerializationHelper {
         if(jsonElement.isJsonObject()) {
             JsonObject json = jsonElement.getAsJsonObject();
             String effect = JsonHelper.getString(json, "effect");
-            Optional<StatusEffect> effectOptional = Registry.STATUS_EFFECT.getOrEmpty(Identifier.tryParse(effect));
+            Optional<StatusEffect> effectOptional = Registries.STATUS_EFFECT.getOrEmpty(Identifier.tryParse(effect));
             if(!effectOptional.isPresent()) {
                 throw new JsonSyntaxException("Error reading status effect: could not find status effect with id: " + effect);
             }
@@ -74,11 +75,11 @@ public class SerializationHelper {
         boolean ambient = buf.readBoolean();
         boolean showParticles = buf.readBoolean();
         boolean showIcon = buf.readBoolean();
-        return new StatusEffectInstance(Registry.STATUS_EFFECT.get(effect), duration, amplifier, ambient, showParticles, showIcon);
+        return new StatusEffectInstance(Registries.STATUS_EFFECT.get(effect), duration, amplifier, ambient, showParticles, showIcon);
     }
 
     public static void writeStatusEffect(PacketByteBuf buf, StatusEffectInstance statusEffectInstance) {
-        buf.writeIdentifier(Registry.STATUS_EFFECT.getId(statusEffectInstance.getEffectType()));
+        buf.writeIdentifier(Registries.STATUS_EFFECT.getId(statusEffectInstance.getEffectType()));
         buf.writeInt(statusEffectInstance.getDuration());
         buf.writeInt(statusEffectInstance.getAmplifier());
         buf.writeBoolean(statusEffectInstance.isAmbient());
