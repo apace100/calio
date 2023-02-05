@@ -9,8 +9,10 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
 import io.github.apace100.calio.util.ArgumentWrapper;
+import io.github.apace100.calio.util.TagLike;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.tag.TagKey;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
@@ -314,5 +316,32 @@ public class SerializableDataType<T> {
                     throw new RuntimeException("Wrong syntax in argument type data", e);
                 }
             });
+    }
+
+    public static <T> SerializableDataType<TagLike<T>> tagLike(Registry<T> registry) {
+        return new SerializableDataType<>(ClassUtil.castClass(TagLike.class),
+                (packetByteBuf, tagLike) -> tagLike.write(packetByteBuf),
+                packetByteBuf -> {
+                    TagLike<T> tagLike = new TagLike<>(registry);
+                    tagLike.read(packetByteBuf);
+                    return tagLike;
+                },
+                jsonElement -> {
+                    TagLike<T> tagLike = new TagLike<>(registry);
+                    if (!jsonElement.isJsonArray()) {
+                        throw new JsonSyntaxException("Expected a JSON array,");
+                    }
+                    JsonArray jsonArray = jsonElement.getAsJsonArray();
+                    jsonArray.forEach(je -> {
+                        String s = je.getAsString();
+                        if (s.startsWith("#")) {
+                            Identifier id = new Identifier(s.substring(1));
+                            tagLike.addTag(id);
+                        } else {
+                            tagLike.add(new Identifier(s));
+                        }
+                    });
+                    return tagLike;
+                });
     }
 }
