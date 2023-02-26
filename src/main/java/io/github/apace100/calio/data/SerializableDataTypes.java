@@ -423,15 +423,25 @@ public final class SerializableDataTypes {
             throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
         });
 
-    public static final SerializableDataType<NbtCompound> NBT = SerializableDataType.wrap(NbtCompound.class, SerializableDataTypes.STRING,
-        NbtCompound::toString,
-        (str) -> {
+    public static final SerializableDataType<NbtCompound> NBT = new SerializableDataType<>(
+        NbtCompound.class,
+        PacketByteBuf::writeNbt,
+        PacketByteBuf::readNbt,
+        jsonElement -> {
+
+            if (!(jsonElement.isJsonObject()|| jsonElement.isJsonPrimitive() && jsonElement.getAsJsonPrimitive().isString()))
+                throw new JsonSyntaxException("Expected either a string or an object.");
+
             try {
-                return new StringNbtReader(new StringReader(str)).parseCompound();
-            } catch (CommandSyntaxException e) {
-                throw new JsonSyntaxException("Could not parse NBT tag, exception: " + e.getMessage());
+                String stringifiedJsonElement = jsonElement.isJsonObject() ? jsonElement.getAsJsonObject().toString() : jsonElement.getAsJsonPrimitive().getAsString();
+                return new StringNbtReader(new StringReader(stringifiedJsonElement)).parseCompound();
             }
-        });
+            catch (CommandSyntaxException e) {
+                throw new JsonSyntaxException("Could not parse NBT: " + e.getMessage());
+            }
+
+        }
+    );
 
     public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(ItemStack.class,
         new SerializableData()
