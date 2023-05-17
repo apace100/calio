@@ -6,11 +6,8 @@ import com.google.gson.*;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.data.SerializableData.Instance;
-import io.github.apace100.calio.mixin.DamageSourceAccessor;
 import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.StatusEffectChance;
 import io.github.apace100.calio.util.TagLike;
@@ -26,7 +23,7 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
-import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.damage.DamageType;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.fluid.Fluid;
@@ -41,8 +38,7 @@ import net.minecraft.particle.ParticleType;
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.recipe.RecipeSerializer;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.*;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.stat.Stat;
 import net.minecraft.stat.StatType;
@@ -51,8 +47,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.*;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
@@ -217,52 +211,8 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, Registries.ENCHANTMENT);
 
-    public static final SerializableDataType<DamageSource> DAMAGE_SOURCE = SerializableDataType.compound(DamageSource.class, new SerializableData()
-            .add("name", STRING)
-            .add("bypasses_armor", BOOLEAN, false)
-            .add("fire", BOOLEAN, false)
-            .add("unblockable", BOOLEAN, false)
-            .add("magic", BOOLEAN, false)
-            .add("out_of_world", BOOLEAN, false)
-            .add("projectile", BOOLEAN, false)
-            .add("explosive", BOOLEAN, false),
-        (data) -> {
-            DamageSource damageSource = DamageSourceAccessor.createDamageSource(data.getString("name"));
-            if(data.getBoolean("bypasses_armor")) {
-                ((DamageSourceAccessor)damageSource).callSetBypassesArmor();
-            }
-            if(data.getBoolean("fire")) {
-                ((DamageSourceAccessor)damageSource).callSetFire();
-            }
-            if(data.getBoolean("unblockable")) {
-                ((DamageSourceAccessor)damageSource).callSetUnblockable();
-            }
-            if(data.getBoolean("magic")) {
-                ((DamageSourceAccessor)damageSource).callSetUsesMagic();
-            }
-            if(data.getBoolean("out_of_world")) {
-                ((DamageSourceAccessor)damageSource).callSetOutOfWorld();
-            }
-            if(data.getBoolean("projectile")) {
-                ((DamageSourceAccessor)damageSource).callSetProjectile();
-            }
-            if(data.getBoolean("explosive")) {
-                ((DamageSourceAccessor)damageSource).callSetExplosive();
-            }
-            return damageSource;
-        },
-        (data, ds) -> {
-            SerializableData.Instance inst = data.new Instance();
-            inst.set("name", ds.name);
-            inst.set("fire", ds.isFire());
-            inst.set("unblockable", ds.isUnblockable());
-            inst.set("bypasses_armor", ds.bypassesArmor());
-            inst.set("out_of_world", ds.isOutOfWorld());
-            inst.set("magic", ds.isMagic());
-            inst.set("projectile", ds.isProjectile());
-            inst.set("explosive", ds.isExplosive());
-            return inst;
-        });
+    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(RegistryKeys.WORLD);
+
 
     public static final SerializableDataType<EntityAttribute> ATTRIBUTE = SerializableDataType.registry(EntityAttribute.class, Registries.ATTRIBUTE);
 
@@ -360,6 +310,8 @@ public final class SerializableDataTypes {
                 throw new JsonParseException(e);
             }
         });
+
+    public static final SerializableDataType<RegistryKey<DamageType>> DAMAGE_TYPE = SerializableDataType.registryKey(RegistryKeys.DAMAGE_TYPE);
 
     public static final SerializableDataType<EntityGroup> ENTITY_GROUP =
         SerializableDataType.mapped(EntityGroup.class, HashBiMap.create(ImmutableMap.of(
@@ -471,8 +423,6 @@ public final class SerializableDataTypes {
         Text.Serializer::fromJson);
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
-
-    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(RegistryKeys.WORLD);
 
     public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
         (buffer, recipe) -> {

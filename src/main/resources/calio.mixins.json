@@ -6,7 +6,6 @@
   "mixins": [
     "CriteriaRegistryInvoker",
     "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
-    "DamageSourceAccessor",
     "DontOverwriteAttrModsMixin",
     "RegistrySyncMixin",
     "WeightedListEntryAccessor"
