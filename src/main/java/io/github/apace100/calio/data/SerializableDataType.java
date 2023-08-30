@@ -9,6 +9,7 @@ import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
 import io.github.apace100.calio.util.ArgumentWrapper;
+import io.github.apace100.calio.util.DynamicIdentifier;
 import io.github.apace100.calio.util.TagLike;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.tag.TagKey;
@@ -157,15 +158,30 @@ public class SerializableDataType<T> {
     }
 
     public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry) {
-        return wrap(dataClass, SerializableDataTypes.IDENTIFIER, registry::getId, id -> {
-            Optional<T> optional = registry.getOrEmpty(id);
-            if(optional.isPresent()) {
-                return optional.get();
-            } else {
-                throw new RuntimeException(
-                    "Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\".");
+        return wrap(
+            dataClass,
+            SerializableDataTypes.IDENTIFIER,
+            registry::getId,
+            id -> registry.getOrEmpty(id).orElseThrow(() -> {
+                String possibleValues = String.join(", ", registry.getIds().stream().map(Identifier::toString).toList());
+                return new RuntimeException("Object with the identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected identifier to be any of " + possibleValues + ".");
+            })
+        );
+    }
+
+    public static <T> SerializableDataType<T> defaultedRegistry(Class<T> dataClass, Registry<T> registry, String defaultNamespace) {
+        return wrap(
+            dataClass,
+            SerializableDataTypes.STRING,
+            t -> Objects.requireNonNull(registry.getId(t)).toString(),
+            idString -> {
+                Identifier id = DynamicIdentifier.of(idString, defaultNamespace);
+                return registry.getOrEmpty(id).orElseThrow(() -> {
+                    String possibleValues = String.join(", ", registry.getIds().stream().map(Identifier::toString).toList());
+                    return new RuntimeException("Object with the identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected identifier to be any of " + possibleValues + ".");
+                });
             }
-        });
+        );
     }
 
     public static <T> SerializableDataType<T> compound(Class<T> dataClass, SerializableData data, Function<SerializableData.Instance, T> toInstance, BiFunction<SerializableData, T, SerializableData.Instance> toData) {
