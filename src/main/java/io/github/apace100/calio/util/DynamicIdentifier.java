@@ -25,16 +25,20 @@ public class DynamicIdentifier extends Identifier {
     public static DynamicIdentifier of(String idString, String defaultNamespace) {
 
         String[] namespaceAndPath = splitWithNamespace(idString, defaultNamespace);
-        if (namespaceAndPath[0].contains("*") && SerializableData.CURRENT_NAMESPACE != null) {
-            namespaceAndPath[0] = namespaceAndPath[0].replace("*", SerializableData.CURRENT_NAMESPACE);
-        } else {
-            throw new InvalidIdentifierException("Identifiers may only contain the character '*' in its namespace in data loaders that support it.");
+        if (namespaceAndPath[0].contains("*")) {
+            if (SerializableData.CURRENT_NAMESPACE != null) {
+                namespaceAndPath[0] = namespaceAndPath[0].replace("*", SerializableData.CURRENT_NAMESPACE);
+            } else {
+                throw new InvalidIdentifierException("Identifiers may only contain '*' in its namespace in data loaders that support it.");
+            }
         }
 
-        if (namespaceAndPath[1].contains("*") && SerializableData.CURRENT_PATH != null) {
-            namespaceAndPath[1] = namespaceAndPath[1].replace("*", SerializableData.CURRENT_PATH);
-        } else {
-            throw new InvalidIdentifierException("Identifiers may only contain the character '*' in its path in data loaders that support it.");
+        if (namespaceAndPath[1].contains("*")) {
+            if (SerializableData.CURRENT_PATH != null) {
+                namespaceAndPath[1] = namespaceAndPath[1].replace("*", SerializableData.CURRENT_PATH);
+            } else {
+                throw new InvalidIdentifierException("Identifiers may only contain '*' in its path in data loaders that support it.");
+            }
         }
 
         return new DynamicIdentifier(namespaceAndPath[0], namespaceAndPath[1], defaultNamespace);
@@ -43,14 +47,13 @@ public class DynamicIdentifier extends Identifier {
 
     public static String[] splitWithNamespace(String idString, String defaultNamespace) {
 
-        String[] namespaceAndPath = {defaultNamespace, idString};
-        int separatorIndex = idString.indexOf(NAMESPACE_SEPARATOR);
+        String[] namespaceAndPath = idString.split(String.valueOf(NAMESPACE_SEPARATOR));
+        if (namespaceAndPath.length > 2) {
+            throw new InvalidIdentifierException("Identifier \"" + idString + "\" must only have one \":\" separating its namespace and path.");
+        }
 
-        if (separatorIndex >= 0) {
-            namespaceAndPath[1] = idString.substring(separatorIndex + 1);
-            if (separatorIndex >= 1) {
-                namespaceAndPath[0] = idString.substring(0, separatorIndex);
-            }
+        if (namespaceAndPath.length == 1) {
+            return new String[]{defaultNamespace, namespaceAndPath[0]};
         }
 
         return namespaceAndPath;
