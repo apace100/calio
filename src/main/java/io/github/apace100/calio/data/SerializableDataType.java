@@ -164,7 +164,7 @@ public class SerializableDataType<T> {
             registry::getId,
             id -> registry.getOrEmpty(id).orElseThrow(() -> {
                 String possibleValues = String.join(", ", registry.getIds().stream().map(Identifier::toString).toList());
-                return new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected " + possibleValues);
+                return new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected value to be any of " + possibleValues);
             })
         );
     }
@@ -178,7 +178,7 @@ public class SerializableDataType<T> {
                 Identifier id = DynamicIdentifier.of(idString, defaultNamespace);
                 return registry.getOrEmpty(id).orElseThrow(() -> {
                     String possibleValues = String.join(", ", registry.getIds().stream().map(Identifier::toString).toList());
-                    return new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected " + possibleValues);
+                    return new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected value to be any of " + possibleValues);
                 });
             }
         );
