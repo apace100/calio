@@ -158,18 +158,18 @@ public class SerializableDataType<T> {
     }
 
     public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry) {
-        return wrap(
-            dataClass,
-            SerializableDataTypes.IDENTIFIER,
-            registry::getId,
-            id -> registry.getOrEmpty(id).orElseThrow(() -> {
-                String possibleValues = String.join(", ", registry.getIds().stream().map(Identifier::toString).toList());
-                return new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected value to be any of " + possibleValues);
-            })
-        );
+        return registry(dataClass, registry, false);
     }
 
-    public static <T> SerializableDataType<T> defaultedRegistry(Class<T> dataClass, Registry<T> registry, String defaultNamespace) {
+    public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry, String defaultNamespace) {
+        return registry(dataClass, registry, defaultNamespace, false);
+    }
+
+    public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry, boolean showPossibleValues) {
+        return registry(dataClass, registry, Identifier.DEFAULT_NAMESPACE, showPossibleValues);
+    }
+
+    public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry, String defaultNamespace, boolean showPossibleValues) {
         return wrap(
             dataClass,
             SerializableDataTypes.STRING,
@@ -177,8 +177,8 @@ public class SerializableDataType<T> {
             idString -> {
                 Identifier id = DynamicIdentifier.of(idString, defaultNamespace);
                 return registry.getOrEmpty(id).orElseThrow(() -> {
-                    String possibleValues = String.join(", ", registry.getIds().stream().map(Identifier::toString).toList());
-                    return new RuntimeException("Identifier \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\". Expected value to be any of " + possibleValues);
+                    String possibleValues = showPossibleValues ? " Expected value to be any of " + String.join(", ", registry.getIds().stream().map(Identifier::toString).toList()) : "";
+                    return new RuntimeException("Type \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\"." + possibleValues);
                 });
             }
         );

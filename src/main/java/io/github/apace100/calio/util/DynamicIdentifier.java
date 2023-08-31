@@ -7,22 +7,19 @@ import net.minecraft.util.InvalidIdentifierException;
 
 public class DynamicIdentifier extends Identifier {
 
-    private final String defaultNamespace;
-
-    protected DynamicIdentifier(String namespace, String path, String defaultNamespace) {
+    protected DynamicIdentifier(String namespace, String path) {
         super(namespace, path);
-        this.defaultNamespace = defaultNamespace;
     }
 
-    public static DynamicIdentifier of(JsonElement jsonElement) {
+    public static Identifier of(JsonElement jsonElement) {
         return of(jsonElement.getAsString());
     }
 
-    public static DynamicIdentifier of(String idString) {
+    public static Identifier of(String idString) {
         return of(idString, DEFAULT_NAMESPACE);
     }
 
-    public static DynamicIdentifier of(String idString, String defaultNamespace) {
+    public static Identifier of(String idString, String defaultNamespace) {
 
         String[] namespaceAndPath = splitWithNamespace(idString, defaultNamespace);
         if (namespaceAndPath[0].contains("*")) {
@@ -41,7 +38,7 @@ public class DynamicIdentifier extends Identifier {
             }
         }
 
-        return new DynamicIdentifier(namespaceAndPath[0], namespaceAndPath[1], defaultNamespace);
+        return new DynamicIdentifier(namespaceAndPath[0], namespaceAndPath[1]);
 
     }
 
@@ -58,10 +55,6 @@ public class DynamicIdentifier extends Identifier {
 
         return namespaceAndPath;
 
-    }
-
-    public String getDefaultNamespace() {
-        return defaultNamespace;
     }
 
 }
