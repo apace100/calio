@@ -6,6 +6,7 @@ import com.google.gson.*;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.JsonOps;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
 import io.github.apace100.calio.util.ArgumentWrapper;
@@ -17,6 +18,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.client.render.CameraSubmersionType;
 import net.minecraft.command.argument.BlockArgumentParser;
 import net.minecraft.command.argument.NbtPathArgumentType;
+import net.minecraft.data.server.recipe.RecipeJsonProvider;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.EntityGroup;
 import net.minecraft.entity.EntityType;
@@ -31,6 +33,7 @@ import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.ParticleEffect;
@@ -54,6 +57,7 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.explosion.Explosion;
 
 import java.util.*;
+import java.util.function.Function;
 
 @SuppressWarnings("unused")
 public final class SerializableDataTypes {
@@ -62,7 +66,8 @@ public final class SerializableDataTypes {
         Integer.class,
         PacketByteBuf::writeInt,
         PacketByteBuf::readInt,
-        JsonElement::getAsInt);
+        JsonElement::getAsInt,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
 
@@ -70,13 +75,15 @@ public final class SerializableDataTypes {
         Boolean.class,
         PacketByteBuf::writeBoolean,
         PacketByteBuf::readBoolean,
-        JsonElement::getAsBoolean);
+        JsonElement::getAsBoolean,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(
         Float.class,
         PacketByteBuf::writeFloat,
         PacketByteBuf::readFloat,
-        JsonElement::getAsFloat);
+        JsonElement::getAsFloat,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 
@@ -84,7 +91,8 @@ public final class SerializableDataTypes {
         Double.class,
         PacketByteBuf::writeDouble,
         PacketByteBuf::readDouble,
-        JsonElement::getAsDouble);
+        JsonElement::getAsDouble,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<Double>> DOUBLES = SerializableDataType.list(DOUBLE);
 
@@ -92,7 +100,8 @@ public final class SerializableDataTypes {
         String.class,
         PacketByteBuf::writeString,
         (buf) -> buf.readString(32767),
-        JsonElement::getAsString);
+        JsonElement::getAsString,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<String>> STRINGS = SerializableDataType.list(STRING);
 
@@ -142,6 +151,19 @@ public final class SerializableDataTypes {
                 }
             }
             throw new JsonParseException("Expected a primitive");
+        },
+        number -> {
+            if(number instanceof Double) {
+                return new JsonPrimitive(number.doubleValue());
+            } else if(number instanceof Float) {
+                return new JsonPrimitive(number.floatValue());
+            } else if(number instanceof Integer) {
+                return new JsonPrimitive(number.intValue());
+            } else if(number instanceof Long) {
+                return new JsonPrimitive(number.longValue());
+            } else {
+                return new JsonPrimitive(number.toString());
+            }
         });
 
     public static final SerializableDataType<List<Number>> NUMBERS = SerializableDataType.list(NUMBER);
@@ -167,13 +189,21 @@ public final class SerializableDataTypes {
             } else {
                 throw new JsonParseException("Expected an object with x, y, and z fields.");
             }
-        }));
+        }),
+        (vec3d) -> {
+            JsonObject jo = new JsonObject();
+            jo.addProperty("x", vec3d.x);
+            jo.addProperty("y", vec3d.y);
+            jo.addProperty("z", vec3d.z);
+            return jo;
+        });
 
     public static final SerializableDataType<Identifier> IDENTIFIER = new SerializableDataType<>(
         Identifier.class,
         PacketByteBuf::writeIdentifier,
         PacketByteBuf::readIdentifier,
-        DynamicIdentifier::of
+        DynamicIdentifier::of,
+        identifier -> new JsonPrimitive(identifier.toString())
     );
 
     public static final SerializableDataType<List<Identifier>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
@@ -218,7 +248,8 @@ public final class SerializableDataTypes {
         StatusEffectInstance.class,
         SerializationHelper::writeStatusEffect,
         SerializationHelper::readStatusEffect,
-        SerializationHelper::readStatusEffect);
+        SerializationHelper::readStatusEffect,
+        SerializationHelper::writeStatusEffect);
 
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
@@ -259,14 +290,16 @@ public final class SerializableDataTypes {
         jsonElement -> {
             List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
             return Ingredient.ofEntries(entryList.stream());
-        });
+        },
+        INGREDIENT_ENTRIES::write);
 
     // The regular vanilla Minecraft ingredient.
     public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
-        Ingredient::fromJson);
+        Ingredient::fromJson,
+        Ingredient::toJson);
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registries.BLOCK);
 
@@ -342,7 +375,8 @@ public final class SerializableDataTypes {
                 return PARTICLE_EFFECT.read(jsonElement);
             }
             throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
-        });
+        },
+        PARTICLE_EFFECT::write);
 
     public static final SerializableDataType<NbtCompound> NBT = new SerializableDataType<>(
         NbtCompound.class,
@@ -361,7 +395,8 @@ public final class SerializableDataTypes {
                 throw new JsonSyntaxException("Could not parse NBT: " + e.getMessage());
             }
 
-        }
+        },
+        nbtCompound -> NbtOps.INSTANCE.convertTo(JsonOps.INSTANCE, nbtCompound)
     );
 
     public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(ItemStack.class,
@@ -389,7 +424,8 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(Text.class,
         (buffer, text) -> buffer.writeString(Text.Serializer.toJson(text)),
         (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
-        Text.Serializer::fromJson);
+        Text.Serializer::fromJson,
+        Text.Serializer::toJsonTree);
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 
@@ -414,6 +450,10 @@ public final class SerializableDataTypes {
             Identifier recipeId = Identifier.tryParse(JsonHelper.getString(json, "id"));
             RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
             return serializer.read(recipeId, json);
+        },
+        recipe -> {
+            // TODO: This.
+            return new JsonObject();
         });
 
     public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registries.GAME_EVENT);

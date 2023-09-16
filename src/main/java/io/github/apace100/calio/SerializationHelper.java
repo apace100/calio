@@ -87,6 +87,17 @@ public class SerializationHelper {
         buf.writeBoolean(statusEffectInstance.shouldShowIcon());
     }
 
+    public static JsonElement writeStatusEffect(StatusEffectInstance statusEffectInstance) {
+        JsonObject jo = new JsonObject();
+        jo.addProperty("effect", Registries.STATUS_EFFECT.getId(statusEffectInstance.getEffectType()).toString());
+        jo.addProperty("duration", 100);
+        jo.addProperty("amplifier", 0);
+        jo.addProperty("is_ambient", false);
+        jo.addProperty("show_particles", true);
+        jo.addProperty("show_icon", true);
+        return jo;
+    }
+
     public static <T extends Enum<T>> HashMap<String, T> buildEnumMap(Class<T> enumClass, Function<T, String> enumToString) {
         HashMap<String, T> map = new HashMap<>();
         for (T enumConstant : enumClass.getEnumConstants()) {

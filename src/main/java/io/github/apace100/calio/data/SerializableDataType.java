@@ -5,6 +5,7 @@ import com.google.gson.*;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.FilterableWeightedList;
 import io.github.apace100.calio.mixin.WeightedListEntryAccessor;
@@ -17,6 +18,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.collection.WeightedList;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,15 +32,29 @@ public class SerializableDataType<T> {
     private final BiConsumer<PacketByteBuf, T> send;
     private final Function<PacketByteBuf, T> receive;
     private final Function<JsonElement, T> read;
+    private final Function<T, JsonElement> write;
 
+    @Deprecated
     public SerializableDataType(Class<T> dataClass,
                                 BiConsumer<PacketByteBuf, T> send,
                                 Function<PacketByteBuf, T> receive,
                                 Function<JsonElement, T> read) {
+        this(dataClass, send, receive, read, (obj) -> {
+            Calio.LOGGER.warn("Could not write serializable data type of class {} as it does not have a write function set.", dataClass.getName());
+            return new JsonObject();
+        });
+    }
+
+    public SerializableDataType(Class<T> dataClass,
+                                BiConsumer<PacketByteBuf, T> send,
+                                Function<PacketByteBuf, T> receive,
+                                Function<JsonElement, T> read,
+                                Function<T, JsonElement> write) {
         this.dataClass = dataClass;
         this.send = send;
         this.receive = receive;
         this.read = read;
+        this.write = write;
     }
 
     public void send(PacketByteBuf buffer, Object value) {
@@ -51,6 +67,10 @@ public class SerializableDataType<T> {
 
     public T read(JsonElement jsonElement) {
         return read.apply(jsonElement);
+    }
+
+    public JsonElement write(Object value) {
+        return write.apply(cast(value));
     }
 
     public T cast(Object data) {
@@ -102,6 +122,12 @@ public class SerializableDataType<T> {
                 list.add(singleDataType.read(json));
             }
             return list;
+        }, (list) -> {
+            JsonArray array = new JsonArray();
+            for (T value : list) {
+                array.add(singleDataType.write.apply(value));
+            }
+            return array;
         });
     }
 
@@ -154,6 +180,14 @@ public class SerializableDataType<T> {
                 }
             }
             return list;
+        }, (list) -> {
+            JsonArray array = new JsonArray();
+            for (WeightedList.Entry<T> value : list.entryStream().toList()) {
+                JsonObject listObject = new JsonObject();
+                listObject.add("element", singleDataType.write.apply(value.getElement()));
+                listObject.addProperty("weight", value.getWeight());
+            }
+            return array;
         });
     }
 
@@ -188,7 +222,8 @@ public class SerializableDataType<T> {
         return new SerializableDataType<>(dataClass,
             (buf, t) -> data.write(buf, toData.apply(data, t)),
             (buf) -> toInstance.apply(data.read(buf)),
-            (json) -> toInstance.apply(data.read(json.getAsJsonObject())));
+            (json) -> toInstance.apply(data.read(json.getAsJsonObject())),
+            (t) -> data.write(toData.apply(data, t)));
     }
 
     public static <T extends Enum<T>> SerializableDataType<T> enumValue(Class<T> dataClass) {
@@ -238,7 +273,8 @@ public class SerializableDataType<T> {
                     }
                 }
                 throw new JsonSyntaxException("Expected value to be either an integer or a string.");
-            });
+            },
+            (t) -> new JsonPrimitive(t.name()));
     }
 
     public static <T> SerializableDataType<T> mapped(Class<T> dataClass, BiMap<String, T> map) {
@@ -262,14 +298,16 @@ public class SerializableDataType<T> {
                     }
                 }
                 throw new JsonSyntaxException("Expected value to be a string.");
-            });
+            },
+            (t) -> new JsonPrimitive(map.inverse().get(t)));
     }
 
     public static <T, U> SerializableDataType<T> wrap(Class<T> dataClass, SerializableDataType<U> base, Function<T, U> toFunction, Function<U, T> fromFunction) {
         return new SerializableDataType<>(dataClass,
             (buf, t) -> base.send(buf, toFunction.apply(t)),
             (buf) -> fromFunction.apply(base.receive(buf)),
-            (json) -> fromFunction.apply(base.read(json)));
+            (json) -> fromFunction.apply(base.read(json)),
+            (t) -> base.write(toFunction.apply(t)));
     }
 
     public static <T> SerializableDataType<TagKey<T>> tag(RegistryKey<? extends Registry<T>> registryKey) {
@@ -318,6 +356,13 @@ public class SerializableDataType<T> {
                     throw new RuntimeException("Expected enum set to be either an array or a primitive.");
                 }
                 return set;
+            },
+            (set) -> {
+                JsonArray array = new JsonArray();
+                for (T value : set) {
+                    array.add(enumDataType.write.apply(value));
+                }
+                return array;
             });
     }
 
@@ -358,6 +403,11 @@ public class SerializableDataType<T> {
                         }
                     });
                     return tagLike;
+                },
+                tagLike -> {
+                    JsonArray jsonArray = new JsonArray();
+                    tagLike.write(jsonArray);
+                    return jsonArray;
                 });
     }
 }

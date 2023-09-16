@@ -1,6 +1,8 @@
 package io.github.apace100.calio.data;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -53,6 +55,16 @@ public class SerializableData {
                 throw new DataException(DataException.Phase.WRITING, name, e);
             }
         });
+    }
+
+    public JsonObject write(Instance instance) {
+        JsonObject jsonObject = new JsonObject();
+        dataFields.forEach((name, field) -> {
+            if (instance.get(name) != null) {
+                jsonObject.add(name, field.dataType.write(field));
+            }
+        });
+        return jsonObject;
     }
 
     public Instance read(PacketByteBuf buffer) {
