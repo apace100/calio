@@ -7,12 +7,10 @@ import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.JsonOps;
+import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.util.ArgumentWrapper;
-import io.github.apace100.calio.util.DynamicIdentifier;
-import io.github.apace100.calio.util.StatusEffectChance;
-import io.github.apace100.calio.util.TagLike;
+import io.github.apace100.calio.util.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.CameraSubmersionType;
@@ -452,7 +450,8 @@ public final class SerializableDataTypes {
             return serializer.read(recipeId, json);
         },
         recipe -> {
-            // TODO: This.
+            // TODO: This. This should be possible, but there's so many hurdles when it comes to setting this up and it may be impossible to make sure that this works with modded recipe types.
+            Calio.LOGGER.warn("Writing recipes to JSON is unsupported.");
             return new JsonObject();
         });
 
