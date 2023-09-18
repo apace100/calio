@@ -90,11 +90,11 @@ public class SerializationHelper {
     public static JsonElement writeStatusEffect(StatusEffectInstance statusEffectInstance) {
         JsonObject jo = new JsonObject();
         jo.addProperty("effect", Registries.STATUS_EFFECT.getId(statusEffectInstance.getEffectType()).toString());
-        jo.addProperty("duration", 100);
-        jo.addProperty("amplifier", 0);
-        jo.addProperty("is_ambient", false);
-        jo.addProperty("show_particles", true);
-        jo.addProperty("show_icon", true);
+        jo.addProperty("duration", statusEffectInstance.getDuration());
+        jo.addProperty("amplifier", statusEffectInstance.getAmplifier());
+        jo.addProperty("is_ambient", statusEffectInstance.isAmbient());
+        jo.addProperty("show_particles", statusEffectInstance.shouldShowParticles());
+        jo.addProperty("show_icon", statusEffectInstance.shouldShowIcon());
         return jo;
     }
 
