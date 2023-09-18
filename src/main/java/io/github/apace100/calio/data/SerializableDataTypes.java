@@ -6,6 +6,7 @@ import com.google.gson.*;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
@@ -38,6 +39,7 @@ import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.registry.*;
 import net.minecraft.sound.SoundEvent;
@@ -276,7 +278,15 @@ public final class SerializableDataTypes {
             } else {
                 return new Ingredient.StackEntry(new ItemStack((Item)dataInstance.get("item")));
             }
-        }, (data, entry) -> data.read(entry.toJson()));
+        }, (data, entry) -> {
+                JsonObject json = new JsonObject();
+                if (entry instanceof Ingredient.TagEntry tagEntry) {
+                    json.addProperty("tag", tagEntry.tag().id().toString());
+                } else if (entry instanceof Ingredient.StackEntry stackEntry) {
+                    json.addProperty("item", Registries.ITEM.getId(stackEntry.stack().getItem()).toString());
+                }
+                throw new RuntimeException("Tried to write an ingredient that was not a tag or an item.");
+            });
 
     public static final SerializableDataType<List<Ingredient.Entry>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
@@ -296,8 +306,8 @@ public final class SerializableDataTypes {
         Ingredient.class,
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
-        Ingredient::fromJson,
-        Ingredient::toJson);
+        json -> Ingredient.DISALLOW_EMPTY_CODEC.parse(JsonOps.INSTANCE, json).resultOrPartial(Calio.LOGGER::error).orElseThrow(() -> new RuntimeException("Failed to read vanilla ingredient json.")),
+        ingredient -> ingredient.toJson(false));
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registries.BLOCK);
 
@@ -427,17 +437,17 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 
-    public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
+    public static final SerializableDataType<RecipeEntry> RECIPE = new SerializableDataType<>(RecipeEntry.class,
         (buffer, recipe) -> {
-            buffer.writeIdentifier(Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()));
-            buffer.writeIdentifier(recipe.getId());
-            recipe.getSerializer().write(buffer, recipe);
+            buffer.writeIdentifier(Registries.RECIPE_SERIALIZER.getId(recipe.value().getSerializer()));
+            buffer.writeIdentifier(recipe.id());
+            recipe.value().getSerializer().write(buffer, recipe.value());
         },
         (buffer) -> {
             Identifier recipeSerializerId = buffer.readIdentifier();
             Identifier recipeId = buffer.readIdentifier();
             RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
-            return serializer.read(recipeId, buffer);
+            return new RecipeEntry<>(recipeId, serializer.read(buffer));
         },
         (jsonElement) -> {
             if(!jsonElement.isJsonObject()) {
@@ -447,12 +457,18 @@ public final class SerializableDataTypes {
             Identifier recipeSerializerId = Identifier.tryParse(JsonHelper.getString(json, "type"));
             Identifier recipeId = Identifier.tryParse(JsonHelper.getString(json, "id"));
             RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
-            return serializer.read(recipeId, json);
+            return new RecipeEntry<>(recipeId, serializer.codec().parse(JsonOps.INSTANCE, json).resultOrPartial(Calio.LOGGER::error).orElseThrow(() -> new RuntimeException("Failed to read recipe json.")));
         },
         recipe -> {
-            // TODO: This. This should be possible, but there's so many hurdles when it comes to setting this up and it may be impossible to make sure that this works with modded recipe types.
-            Calio.LOGGER.warn("Writing recipes to JSON is unsupported.");
-            return new JsonObject();
+            JsonObject json = new JsonObject();
+            json.addProperty("type", Registries.RECIPE_SERIALIZER.getId(recipe.value().getSerializer()).toString());
+            json.addProperty("id", recipe.id().toString());
+            recipe.value().getSerializer().codec().encodeStart(JsonOps.INSTANCE, recipe.value()).resultOrPartial(Calio.LOGGER::error).ifPresent(o -> {
+                for (Map.Entry<String, JsonElement> j : ((JsonObject) o).entrySet()) {
+                    json.add(j.getKey(), j.getValue());
+                }
+            });
+            return json;
         });
 
     public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registries.GAME_EVENT);

@@ -1,19 +1,18 @@
 package io.github.apace100.calio;
 
-import com.google.common.reflect.ClassPath;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import io.github.apace100.calio.data.SerializableDataTypes;
-import io.github.apace100.calio.mixin.CriteriaRegistryInvoker;
 import net.fabricmc.api.ModInitializer;
-import net.minecraft.data.server.recipe.RecipeJsonProvider;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
+import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.lang.reflect.Constructor;
 
 public class Calio implements ModInitializer {
 
@@ -21,8 +20,7 @@ public class Calio implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		CriteriaRegistryInvoker.callRegister(CodeTriggerCriterion.INSTANCE);
-
+        Criteria.register(CodeTriggerCriterion.ID.toString(), CodeTriggerCriterion.INSTANCE);
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {

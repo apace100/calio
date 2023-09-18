@@ -4,7 +4,6 @@
   "package": "io.github.apace100.calio.mixin",
   "compatibilityLevel": "JAVA_16",
   "mixins": [
-    "CriteriaRegistryInvoker",
     "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
     "DontOverwriteAttrModsMixin",
     "RegistrySyncMixin",
