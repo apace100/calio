@@ -1,13 +1,8 @@
 package io.github.apace100.calio;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import io.github.apace100.calio.data.SerializableDataTypes;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
