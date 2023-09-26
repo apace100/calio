@@ -1,17 +1,21 @@
 package io.github.apace100.calio;
 
-import io.github.apace100.calio.mixin.CriteriaRegistryInvoker;
 import net.fabricmc.api.ModInitializer;
+import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class Calio implements ModInitializer {
 
+    public static final Logger LOGGER = LogManager.getLogger(Calio.class);
+
 	@Override
 	public void onInitialize() {
-		CriteriaRegistryInvoker.callRegister(CodeTriggerCriterion.INSTANCE);
+        Criteria.register(CodeTriggerCriterion.ID.toString(), CodeTriggerCriterion.INSTANCE);
 	}
 
 	public static boolean hasNonItalicName(ItemStack stack) {

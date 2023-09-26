@@ -6,12 +6,11 @@ import com.google.gson.*;
 import com.google.gson.internal.LazilyParsedNumber;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.serialization.JsonOps;
+import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
-import io.github.apace100.calio.util.ArgumentWrapper;
-import io.github.apace100.calio.util.DynamicIdentifier;
-import io.github.apace100.calio.util.StatusEffectChance;
-import io.github.apace100.calio.util.TagLike;
+import io.github.apace100.calio.util.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.CameraSubmersionType;
@@ -31,12 +30,13 @@ import net.minecraft.item.FoodComponent;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleType;
 import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.Recipe;
+import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.registry.*;
 import net.minecraft.sound.SoundEvent;
@@ -62,7 +62,8 @@ public final class SerializableDataTypes {
         Integer.class,
         PacketByteBuf::writeInt,
         PacketByteBuf::readInt,
-        JsonElement::getAsInt);
+        JsonElement::getAsInt,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
 
@@ -70,13 +71,15 @@ public final class SerializableDataTypes {
         Boolean.class,
         PacketByteBuf::writeBoolean,
         PacketByteBuf::readBoolean,
-        JsonElement::getAsBoolean);
+        JsonElement::getAsBoolean,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<Float> FLOAT = new SerializableDataType<>(
         Float.class,
         PacketByteBuf::writeFloat,
         PacketByteBuf::readFloat,
-        JsonElement::getAsFloat);
+        JsonElement::getAsFloat,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 
@@ -84,7 +87,8 @@ public final class SerializableDataTypes {
         Double.class,
         PacketByteBuf::writeDouble,
         PacketByteBuf::readDouble,
-        JsonElement::getAsDouble);
+        JsonElement::getAsDouble,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<Double>> DOUBLES = SerializableDataType.list(DOUBLE);
 
@@ -92,7 +96,8 @@ public final class SerializableDataTypes {
         String.class,
         PacketByteBuf::writeString,
         (buf) -> buf.readString(32767),
-        JsonElement::getAsString);
+        JsonElement::getAsString,
+        JsonPrimitive::new);
 
     public static final SerializableDataType<List<String>> STRINGS = SerializableDataType.list(STRING);
 
@@ -142,6 +147,19 @@ public final class SerializableDataTypes {
                 }
             }
             throw new JsonParseException("Expected a primitive");
+        },
+        number -> {
+            if(number instanceof Double) {
+                return new JsonPrimitive(number.doubleValue());
+            } else if(number instanceof Float) {
+                return new JsonPrimitive(number.floatValue());
+            } else if(number instanceof Integer) {
+                return new JsonPrimitive(number.intValue());
+            } else if(number instanceof Long) {
+                return new JsonPrimitive(number.longValue());
+            } else {
+                return new JsonPrimitive(number.toString());
+            }
         });
 
     public static final SerializableDataType<List<Number>> NUMBERS = SerializableDataType.list(NUMBER);
@@ -167,13 +185,21 @@ public final class SerializableDataTypes {
             } else {
                 throw new JsonParseException("Expected an object with x, y, and z fields.");
             }
-        }));
+        }),
+        (vec3d) -> {
+            JsonObject jo = new JsonObject();
+            jo.addProperty("x", vec3d.x);
+            jo.addProperty("y", vec3d.y);
+            jo.addProperty("z", vec3d.z);
+            return jo;
+        });
 
     public static final SerializableDataType<Identifier> IDENTIFIER = new SerializableDataType<>(
         Identifier.class,
         PacketByteBuf::writeIdentifier,
         PacketByteBuf::readIdentifier,
-        DynamicIdentifier::of
+        DynamicIdentifier::of,
+        identifier -> new JsonPrimitive(identifier.toString())
     );
 
     public static final SerializableDataType<List<Identifier>> IDENTIFIERS = SerializableDataType.list(IDENTIFIER);
@@ -218,7 +244,8 @@ public final class SerializableDataTypes {
         StatusEffectInstance.class,
         SerializationHelper::writeStatusEffect,
         SerializationHelper::readStatusEffect,
-        SerializationHelper::readStatusEffect);
+        SerializationHelper::readStatusEffect,
+        SerializationHelper::writeStatusEffect);
 
     public static final SerializableDataType<List<StatusEffectInstance>> STATUS_EFFECT_INSTANCES =
         SerializableDataType.list(STATUS_EFFECT_INSTANCE);
@@ -247,7 +274,15 @@ public final class SerializableDataTypes {
             } else {
                 return new Ingredient.StackEntry(new ItemStack((Item)dataInstance.get("item")));
             }
-        }, (data, entry) -> data.read(entry.toJson()));
+        }, (data, entry) -> {
+                JsonObject json = new JsonObject();
+                if (entry instanceof Ingredient.TagEntry tagEntry) {
+                    json.addProperty("tag", tagEntry.tag().id().toString());
+                } else if (entry instanceof Ingredient.StackEntry stackEntry) {
+                    json.addProperty("item", Registries.ITEM.getId(stackEntry.stack().getItem()).toString());
+                }
+                throw new RuntimeException("Tried to write an ingredient that was not a tag or an item.");
+            });
 
     public static final SerializableDataType<List<Ingredient.Entry>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
@@ -259,14 +294,16 @@ public final class SerializableDataTypes {
         jsonElement -> {
             List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
             return Ingredient.ofEntries(entryList.stream());
-        });
+        },
+        INGREDIENT_ENTRIES::write);
 
     // The regular vanilla Minecraft ingredient.
     public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
-        Ingredient::fromJson);
+        json -> Ingredient.DISALLOW_EMPTY_CODEC.parse(JsonOps.INSTANCE, json).resultOrPartial(Calio.LOGGER::error).orElseThrow(() -> new RuntimeException("Failed to read vanilla ingredient json.")),
+        ingredient -> ingredient.toJson(false));
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registries.BLOCK);
 
@@ -342,7 +379,8 @@ public final class SerializableDataTypes {
                 return PARTICLE_EFFECT.read(jsonElement);
             }
             throw new RuntimeException("Expected either a string with a parameter-less particle effect, or an object.");
-        });
+        },
+        PARTICLE_EFFECT::write);
 
     public static final SerializableDataType<NbtCompound> NBT = new SerializableDataType<>(
         NbtCompound.class,
@@ -361,7 +399,8 @@ public final class SerializableDataTypes {
                 throw new JsonSyntaxException("Could not parse NBT: " + e.getMessage());
             }
 
-        }
+        },
+        nbtCompound -> NbtOps.INSTANCE.convertTo(JsonOps.INSTANCE, nbtCompound)
     );
 
     public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(ItemStack.class,
@@ -389,21 +428,22 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(Text.class,
         (buffer, text) -> buffer.writeString(Text.Serializer.toJson(text)),
         (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
-        Text.Serializer::fromJson);
+        Text.Serializer::fromJson,
+        Text.Serializer::toJsonTree);
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 
-    public static final SerializableDataType<Recipe> RECIPE = new SerializableDataType<>(Recipe.class,
+    public static final SerializableDataType<RecipeEntry> RECIPE = new SerializableDataType<>(RecipeEntry.class,
         (buffer, recipe) -> {
-            buffer.writeIdentifier(Registries.RECIPE_SERIALIZER.getId(recipe.getSerializer()));
-            buffer.writeIdentifier(recipe.getId());
-            recipe.getSerializer().write(buffer, recipe);
+            buffer.writeIdentifier(Registries.RECIPE_SERIALIZER.getId(recipe.value().getSerializer()));
+            buffer.writeIdentifier(recipe.id());
+            recipe.value().getSerializer().write(buffer, recipe.value());
         },
         (buffer) -> {
             Identifier recipeSerializerId = buffer.readIdentifier();
             Identifier recipeId = buffer.readIdentifier();
             RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
-            return serializer.read(recipeId, buffer);
+            return new RecipeEntry<>(recipeId, serializer.read(buffer));
         },
         (jsonElement) -> {
             if(!jsonElement.isJsonObject()) {
@@ -413,7 +453,18 @@ public final class SerializableDataTypes {
             Identifier recipeSerializerId = Identifier.tryParse(JsonHelper.getString(json, "type"));
             Identifier recipeId = Identifier.tryParse(JsonHelper.getString(json, "id"));
             RecipeSerializer<?> serializer = Registries.RECIPE_SERIALIZER.get(recipeSerializerId);
-            return serializer.read(recipeId, json);
+            return new RecipeEntry<>(recipeId, serializer.codec().parse(JsonOps.INSTANCE, json).resultOrPartial(Calio.LOGGER::error).orElseThrow(() -> new RuntimeException("Failed to read recipe json.")));
+        },
+        recipe -> {
+            JsonObject json = new JsonObject();
+            json.addProperty("type", Registries.RECIPE_SERIALIZER.getId(recipe.value().getSerializer()).toString());
+            json.addProperty("id", recipe.id().toString());
+            recipe.value().getSerializer().codec().encodeStart(JsonOps.INSTANCE, recipe.value()).resultOrPartial(Calio.LOGGER::error).ifPresent(o -> {
+                for (Map.Entry<String, JsonElement> j : ((JsonObject) o).entrySet()) {
+                    json.add(j.getKey(), j.getValue());
+                }
+            });
+            return json;
         });
 
     public static final SerializableDataType<GameEvent> GAME_EVENT = SerializableDataType.registry(GameEvent.class, Registries.GAME_EVENT);

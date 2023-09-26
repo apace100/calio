@@ -1,5 +1,6 @@
 package io.github.apace100.calio.util;
 
+import com.google.gson.JsonArray;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -72,6 +73,15 @@ public class TagLike<T> {
         for(int i = 0; i < count; i++) {
             T t = registry.get(new Identifier(buf.readString()));
             items.add(t);
+        }
+    }
+
+    public void write(JsonArray array) {
+        for (TagKey<T> tagKey : tags) {
+            array.add("#" + tagKey.id().toString());
+        }
+        for(T t : items) {
+            array.add(registry.getId(t).toString());
         }
     }
 }
