@@ -100,7 +100,7 @@ public class SerializableData {
 
                 if (jsonObject.has(name)) {
                     instance.set(name, field.dataType.read(jsonObject.get(name)));
-                } else if (field.hasDefault) {
+                } else if (field.hasDefault()) {
                     instance.set(name, field.getDefault(instance));
                 } else {
                     throw new JsonSyntaxException("JSON requires field: " + name);
@@ -248,12 +248,14 @@ public class SerializableData {
             } else if (hasDefault) {
                 return defaultValue;
             } else {
-                throw new IllegalArgumentException("Tried to access default value of serializable data entry, when no default was provided");
+                throw new IllegalStateException("Tried to access default value of serializable data entry, when no default was provided.");
             }
         }
 
         public SerializableDataType<T> getDataType() {
             return dataType;
         }
+
     }
+
 }
