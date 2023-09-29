@@ -144,16 +144,17 @@ public class SerializableData {
 
         public boolean isPresent(String name) {
 
-            if (!dataFields.containsKey(name)) {
-                return data.containsKey(name);
+            if (dataFields.containsKey(name)) {
+
+                Field<?> field = dataFields.get(name);
+
+                if (field.hasDefault && field.defaultValue == null) {
+                    return get(name) != null;
+                }
+
             }
 
-            Field<?> field = dataFields.get(name);
-            if (field.hasDefault && field.defaultValue == null) {
-                return get(name) != null;
-            }
-
-            return false;
+            return data.containsKey(name);
 
         }
 
