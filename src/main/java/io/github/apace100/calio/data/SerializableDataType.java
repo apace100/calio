@@ -281,6 +281,43 @@ public class SerializableDataType<T> {
             (t) -> new JsonPrimitive(t.name()));
     }
 
+    public static <V> SerializableDataType<Map<String, V>> map(SerializableDataType<V> valueDataType) {
+        return new SerializableDataType<>(
+            ClassUtil.castClass(Map.class),
+            (buffer, map) -> buffer.writeMap(
+                map,
+                PacketByteBuf::writeString,
+                valueDataType::send
+            ),
+            buffer -> buffer.readMap(
+                PacketByteBuf::readString,
+                valueDataType::receive
+            ),
+            jsonElement -> {
+
+                if (!(jsonElement instanceof JsonObject jsonObject)) {
+                    throw new JsonSyntaxException("Expected a JSON object.");
+                }
+
+                Map<String, V> map = new HashMap<>();
+                for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+                    map.put(entry.getKey(), valueDataType.read(entry.getValue()));
+                }
+
+                return map;
+
+            },
+            map -> {
+
+                JsonObject jsonObject = new JsonObject();
+                map.forEach((k, v) -> jsonObject.add(k, valueDataType.write(v)));
+
+                return jsonObject;
+
+            }
+        );
+    }
+
     public static <T> SerializableDataType<T> mapped(Class<T> dataClass, BiMap<String, T> map) {
         return new SerializableDataType<>(dataClass,
             (buf, t) -> buf.writeString(map.inverse().get(t)),
