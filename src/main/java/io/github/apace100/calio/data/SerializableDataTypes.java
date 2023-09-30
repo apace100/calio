@@ -10,6 +10,7 @@ import com.mojang.serialization.JsonOps;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
+import io.github.apace100.calio.mixin.IngredientAccessor;
 import io.github.apace100.calio.util.*;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -258,31 +259,49 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<TagKey<EntityType<?>>> ENTITY_TAG = SerializableDataType.tag(RegistryKeys.ENTITY_TYPE);
 
-    public static final SerializableDataType<Ingredient.Entry> INGREDIENT_ENTRY = SerializableDataType.compound(ClassUtil.castClass(Ingredient.Entry.class),
+    public static final SerializableDataType<Ingredient.Entry> INGREDIENT_ENTRY = SerializableDataType.compound(
+        ClassUtil.castClass(Ingredient.Entry.class),
         new SerializableData()
-            .add("item", ITEM, null)
-            .add("tag", ITEM_TAG, null),
-        dataInstance -> {
-            boolean tagPresent = dataInstance.isPresent("tag");
-            boolean itemPresent = dataInstance.isPresent("item");
-            if(tagPresent == itemPresent) {
-                throw new JsonParseException("An ingredient entry is either a tag or an item, " + (tagPresent ? "not both" : "one has to be provided."));
+            .add("tag", ITEM_TAG, null)
+            .add("item", ITEM, null),
+        data -> {
+
+            boolean isTagPresent = data.isPresent("tag");
+            boolean isItemPresent = data.isPresent("item");
+
+            if (isTagPresent == isItemPresent) {
+                throw new JsonParseException("An ingredient entry is either a tag or an item, " + (isTagPresent ? "not both." : "one has to be provided."));
             }
-            if(tagPresent) {
-                TagKey<Item> tag = dataInstance.get("tag");
+
+            if (isTagPresent) {
+                TagKey<Item> tag = data.get("tag");
                 return new Ingredient.TagEntry(tag);
             } else {
-                return new Ingredient.StackEntry(new ItemStack((Item)dataInstance.get("item")));
+
+                Item item = data.get("item");
+                ItemStack stack = new ItemStack(item);
+
+                return new Ingredient.StackEntry(stack);
+
             }
-        }, (data, entry) -> {
-                JsonObject json = new JsonObject();
-                if (entry instanceof Ingredient.TagEntry tagEntry) {
-                    json.addProperty("tag", tagEntry.tag().id().toString());
-                } else if (entry instanceof Ingredient.StackEntry stackEntry) {
-                    json.addProperty("item", Registries.ITEM.getId(stackEntry.stack().getItem()).toString());
-                }
-                throw new RuntimeException("Tried to write an ingredient that was not a tag or an item.");
-            });
+
+        },
+        (serializableData, entry) -> {
+
+            SerializableData.Instance data = serializableData.new Instance();
+
+            if (entry instanceof Ingredient.TagEntry tagEntry) {
+                data.set("tag", tagEntry.tag());
+            } else if (entry instanceof Ingredient.StackEntry stackEntry) {
+                data.set("item", stackEntry.stack().getItem());
+            } else {
+                throw new RuntimeException("Tried to write an ingredient that was not a tag or an item!");
+            }
+
+            return data;
+
+        }
+    );
 
     public static final SerializableDataType<List<Ingredient.Entry>> INGREDIENT_ENTRIES = SerializableDataType.list(INGREDIENT_ENTRY);
 
@@ -295,7 +314,10 @@ public final class SerializableDataTypes {
             List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
             return Ingredient.ofEntries(entryList.stream());
         },
-        INGREDIENT_ENTRIES::write);
+        ingredient -> {
+            List<Ingredient.Entry> entries = Arrays.asList(((IngredientAccessor) ingredient).getEntries());
+            return INGREDIENT_ENTRIES.write(entries);
+        });
 
     // The regular vanilla Minecraft ingredient.
     public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(

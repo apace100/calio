@@ -1,20 +1,21 @@
 {
-  "required": true,
-  "minVersion": "0.8",
-  "package": "io.github.apace100.calio.mixin",
-  "compatibilityLevel": "JAVA_16",
-  "mixins": [
-    "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
-    "DontOverwriteAttrModsMixin",
-    "RegistrySyncMixin",
-    "WeightedListEntryAccessor"
-  ],
-  "client": [
-    "CustomNonItalicNameMixin$ModifyItalicDisplayHud",
-    "CustomNonItalicNameMixin$ModifyItalicDisplayItem",
-    "HandledScreenFocusedSlotAccessor"
-  ],
-  "injectors": {
-    "defaultRequire": 1
+    "required": true,
+    "minVersion": "0.8",
+    "package": "io.github.apace100.calio.mixin",
+    "compatibilityLevel": "JAVA_16",
+    "mixins": [
+        "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
+        "DontOverwriteAttrModsMixin",
+        "IngredientAccessor",
+        "RegistrySyncMixin",
+        "WeightedListEntryAccessor"
+    ],
+    "client": [
+        "CustomNonItalicNameMixin$ModifyItalicDisplayHud",
+        "CustomNonItalicNameMixin$ModifyItalicDisplayItem",
+        "HandledScreenFocusedSlotAccessor"
+    ],
+    "injectors": {
+        "defaultRequire": 1
   }
 }
