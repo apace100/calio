@@ -292,7 +292,9 @@ public final class SerializableDataTypes {
 
             if (entry instanceof Ingredient.TagEntry tagEntry) {
                 data.set("tag", tagEntry.tag());
+                data.set("item", null);
             } else if (entry instanceof Ingredient.StackEntry stackEntry) {
+                data.set("tag", null);
                 data.set("item", stackEntry.stack().getItem());
             } else {
                 throw new RuntimeException("Tried to write an ingredient that was not a tag or an item!");
@@ -311,8 +313,8 @@ public final class SerializableDataTypes {
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
         jsonElement -> {
-            List<Ingredient.Entry> entryList = INGREDIENT_ENTRIES.read(jsonElement);
-            return Ingredient.ofEntries(entryList.stream());
+            List<Ingredient.Entry> entries = INGREDIENT_ENTRIES.read(jsonElement);
+            return Ingredient.ofEntries(entries.stream());
         },
         ingredient -> {
             List<Ingredient.Entry> entries = Arrays.asList(((IngredientAccessor) ingredient).getEntries());
