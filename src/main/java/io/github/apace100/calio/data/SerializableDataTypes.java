@@ -352,7 +352,12 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<EquipmentSlot> EQUIPMENT_SLOT = SerializableDataType.enumValue(EquipmentSlot.class);
 
-    public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.registry(SoundEvent.class, Registries.SOUND_EVENT);
+    public static final SerializableDataType<SoundEvent> SOUND_EVENT = SerializableDataType.wrap(
+        SoundEvent.class,
+        IDENTIFIER,
+        SoundEvent::getId,
+        SoundEvent::of
+    );
 
     public static final SerializableDataType<EntityType<?>> ENTITY_TYPE = SerializableDataType.registry(ClassUtil.castClass(EntityType.class), Registries.ENTITY_TYPE);
 
