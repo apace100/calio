@@ -69,12 +69,16 @@ public class SerializableDataType<T> {
         return read.apply(jsonElement);
     }
 
-    public JsonElement write(T value) {
+    public JsonElement writeUnsafely(Object value) throws Exception {
         try {
-            return write.apply(value);
-        } catch (Exception e) {
-            throw new IllegalStateException("There was a problem trying to serialize %s to JSON: %s".formatted(value.getClass(), e.getMessage()));
+            return write.apply(cast(value));
+        } catch (ClassCastException e) {
+            throw new Exception(e);
         }
+    }
+
+    public JsonElement write(T value) {
+        return write.apply(value);
     }
 
     public T cast(Object data) {

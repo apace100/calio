@@ -3,6 +3,7 @@ package io.github.apace100.calio.data;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
+import io.github.apace100.calio.Calio;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
@@ -59,10 +60,16 @@ public class SerializableData {
         });
     }
 
-    public JsonObject write(Instance instance) {
+    public <T> JsonObject write(Instance instance) {
 
         JsonObject jsonObject = new JsonObject();
-        dataFields.forEach((name, field) -> instance.ifPresent(name, o -> jsonObject.add(name, field.dataType.write(o))));
+        dataFields.forEach((name, field) -> instance.ifPresent(name, o -> {
+            try {
+                jsonObject.add(name, field.dataType.writeUnsafely(o));
+            } catch (Exception e) {
+                Calio.LOGGER.error("There was a problem serializing field {} with data type {} to JSON (skipping): {}", name, o.getClass(), e.getMessage());
+            }
+        }));
 
         return jsonObject;
 
