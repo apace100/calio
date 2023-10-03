@@ -1,121 +1,96 @@
 package io.github.apace100.calio.data;
 
-import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import net.minecraft.resource.Resource;
+import com.google.gson.JsonSyntaxException;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.resource.SinglePreparationResourceReloader;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.JsonHelper;
+import net.minecraft.util.Util;
 import net.minecraft.util.profiler.Profiler;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.commons.io.FilenameUtils;
+import org.quiltmc.parsers.json.JsonFormat;
+import org.quiltmc.parsers.json.JsonReader;
+import org.quiltmc.parsers.json.gson.GsonReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.io.BufferedReader;
 import java.util.*;
 
-/***
- * Like JsonDataLoader, but provides a list of elements with an identifier, each element being loaded by a different
- * data pack. This allows overriding and merging several data files into one, similar to how tags work. There is no
- * guarantee on the order of the resulting list, so make sure to include some kind of "priority" system.
+/**
+ *  <p>Like {@link net.minecraft.resource.JsonDataLoader}, except it provides a list of {@link JsonElement JsonElements} associated
+ *  with an {@link Identifier}, where each element is loaded by different resource packs. This allows for overriding and merging several
+ *  data files into one, similar to how tags work. There is no guarantee on the order of the resulting list, so make sure to implement
+ *  some kind of "priority" system.</p>
+ *
+ *  <p>This is now <b>deprecated</b> in favor of using {@link IdentifiableMultiJsonDataLoader}</p>
  */
+@Deprecated
 public abstract class MultiJsonDataLoader extends SinglePreparationResourceReloader<Map<Identifier, List<JsonElement>>> {
-    private static final Logger LOGGER = LogManager.getLogger();
-    private static final int FILE_SUFFIX_LENGTH = ".json".length();
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MultiJsonDataLoader.class);
+    private static final Map<String, JsonFormat> VALID_EXTENSIONS = Util.make(new HashMap<>(), map -> {
+        map.put(".json", JsonFormat.JSON);
+        map.put(".json5", JsonFormat.JSON5);
+        map.put(".jsonc", JsonFormat.JSONC);
+    });
+
     private final Gson gson;
-    private final String dataType;
+    private final String directoryName;
 
-    public MultiJsonDataLoader(Gson gson, String dataType) {
+    public MultiJsonDataLoader(Gson gson, String directoryName) {
         this.gson = gson;
-        this.dataType = dataType;
+        this.directoryName = directoryName;
     }
 
-    protected Map<Identifier, List<JsonElement>> prepare(ResourceManager resourceManager, Profiler profiler) {
-        Map<Identifier, List<JsonElement>> map = Maps.newHashMap();
-        int i = this.dataType.length() + 1;
-        Iterator<Map.Entry<Identifier, Resource>> var5 = resourceManager.findResources(this.dataType, (id) -> {
-            return id.getPath().endsWith(".json");
-        }).entrySet().iterator();
-        Set<String> resourcesHandled = new HashSet<>();
-        while(var5.hasNext()) {
-            Identifier identifier = var5.next().getKey();
-            String string = identifier.getPath();
-            Identifier identifier2 = new Identifier(identifier.getNamespace(), string.substring(i, string.length() - FILE_SUFFIX_LENGTH));
-            resourcesHandled.clear();
-            resourceManager.getAllResources(identifier).forEach(resource -> {
-                if(!resourcesHandled.contains(resource.getResourcePackName())) {
-                    resourcesHandled.add(resource.getResourcePackName());
-                    try {
-                        Throwable var10 = null;
-                        try {
-                            InputStream inputStream = resource.getInputStream();
-                            Throwable var12 = null;
+    @Override
+    protected Map<Identifier, List<JsonElement>> prepare(ResourceManager manager, Profiler profiler) {
 
-                            try {
-                                Reader reader = resource.getReader();
-                                Throwable var14 = null;
+        Map<Identifier, List<JsonElement>> result = new HashMap<>();
+        manager.findResources(directoryName, this::hasValidExtension).keySet().forEach(fileId -> {
 
-                                try {
-                                    JsonElement jsonElement = (JsonElement) JsonHelper.deserialize(this.gson, (Reader)reader, (Class)JsonElement.class);
-                                    if (jsonElement != null) {
-                                        if(map.containsKey(identifier2)) {
-                                            map.get(identifier2).add(jsonElement);
-                                        } else {
-                                            List<JsonElement> elementList = new LinkedList<>();
-                                            elementList.add(jsonElement);
-                                            map.put(identifier2, elementList);
-                                        }
-                                    } else {
-                                        LOGGER.error("Couldn't load data file {} from {} as it's null or empty", identifier2, identifier);
-                                    }
-                                } catch (Throwable var62) {
-                                    var14 = var62;
-                                    throw var62;
-                                } finally {
-                                    if (reader != null) {
-                                        if (var14 != null) {
-                                            try {
-                                                reader.close();
-                                            } catch (Throwable var61) {
-                                                var14.addSuppressed(var61);
-                                            }
-                                        } else {
-                                            reader.close();
-                                        }
-                                    }
+            Identifier id = trim(fileId);
+            String fileExtension = "." + FilenameUtils.getExtension(fileId.getPath());
 
-                                }
-                            } catch (Throwable var64) {
-                                var12 = var64;
-                                throw var64;
-                            } finally {
-                                if (inputStream != null) {
-                                    if (var12 != null) {
-                                        try {
-                                            inputStream.close();
-                                        } catch (Throwable var60) {
-                                            var12.addSuppressed(var60);
-                                        }
-                                    } else {
-                                        inputStream.close();
-                                    }
-                                }
+            JsonFormat jsonFormat = VALID_EXTENSIONS.get(fileExtension);
+            manager.getAllResources(fileId).forEach(resource -> {
 
-                            }
-                        } catch (Throwable var66) {
-                            var10 = var66;
-                            throw var66;
-                        }
-                    } catch (IllegalArgumentException | IOException | JsonParseException var68) {
-                        LOGGER.error("Couldn't parse data file {} from {}", identifier2, identifier, var68);
+                String packName = resource.getResourcePackName();
+                try (BufferedReader resourceReader = resource.getReader()) {
+
+                    if (jsonFormat == null) {
+                        throw new JsonSyntaxException("The file extension \"" + fileExtension + "\" is not supported");
                     }
-                }
-            });
-        }
 
-        return map;
+                    GsonReader gsonReader = new GsonReader(JsonReader.create(resourceReader, jsonFormat));
+                    JsonElement jsonElement = gson.fromJson(gsonReader, JsonElement.class);
+
+                    result.computeIfAbsent(id, k -> new LinkedList<>())
+                        .add(jsonElement);
+
+                } catch (Exception e) {
+                    String filePath = packName + "/.../" + fileId.getNamespace() + "/" + fileId.getPath();
+                    LOGGER.error("Couldn't parse data file \"{}\" from \"{}\": {}", id, filePath, e.getMessage());
+                }
+
+            });
+
+        });
+
+        return result;
+
     }
+
+    private Identifier trim(Identifier id) {
+        String path = FilenameUtils.removeExtension(id.getPath()).substring(directoryName.length() + 1);
+        return new Identifier(id.getNamespace(), path);
+    }
+
+    private boolean hasValidExtension(Identifier id) {
+        return VALID_EXTENSIONS.keySet()
+            .stream()
+            .anyMatch(suffix -> id.getPath().endsWith(suffix));
+    }
+
 }
