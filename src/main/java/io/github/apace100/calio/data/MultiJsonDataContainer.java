@@ -34,6 +34,16 @@ public class MultiJsonDataContainer {
         this.jsonData.forEach((id, jsonElements) -> jsonElements.forEach(jsonElement -> processor.process(packName, id, jsonElement)));
     }
 
+    public boolean contains(Identifier id) {
+        return jsonData.containsKey(id);
+    }
+
+    public boolean contains(JsonElement jsonElement) {
+        return jsonData.values()
+            .stream()
+            .anyMatch(jsonElements -> jsonElements.contains(jsonElement));
+    }
+
     public int size() {
         return this.jsonData.size();
     }
