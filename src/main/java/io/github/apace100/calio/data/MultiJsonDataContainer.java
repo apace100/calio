@@ -3,18 +3,16 @@ package io.github.apace100.calio.data;
 import com.google.gson.JsonElement;
 import net.minecraft.util.Identifier;
 
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @SuppressWarnings("unused")
 public class MultiJsonDataContainer {
 
-    private final Map<Identifier, List<JsonElement>> jsonData = new HashMap<>();
+    private final Map<Identifier, List<JsonElement>> jsonData;
     private final String packName;
 
     public MultiJsonDataContainer(String packName) {
+        this.jsonData = new LinkedHashMap<>();
         this.packName = packName;
     }
 
@@ -24,6 +22,10 @@ public class MultiJsonDataContainer {
 
     protected void put(Identifier id, JsonElement jsonElement) {
         this.jsonData.computeIfAbsent(id, k -> new LinkedList<>()).add(jsonElement);
+    }
+
+    public Map<Identifier, List<JsonElement>> getAll() {
+        return jsonData;
     }
 
     public List<JsonElement> get(Identifier id) {
