@@ -21,11 +21,10 @@ import java.util.*;
 
 /**
  *  Similar to {@link MultiJsonDataLoader}, except it provides a list of {@link MultiJsonDataContainer} that contains a map
- *  of {@link Identifier} and a {@link List} of {@link JsonElement JsonElements} with a {@link String} that determines the
- *  data/resource pack the data is from.
+ *  of {@link Identifier} and a {@link List} of {@link JsonElement JsonElements} with a {@link String} that identifies the
+ *  data/resource pack the JSON data is from.
  */
-@SuppressWarnings("unused")
-public abstract class IdentifiableMultiJsonDataLoader extends SinglePreparationResourceReloader<List<MultiJsonDataContainer>> {
+public abstract class IdentifiableMultiJsonDataLoader extends SinglePreparationResourceReloader<MultiJsonDataContainer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(IdentifiableMultiJsonDataLoader.class);
     private static final Map<String, JsonFormat> VALID_EXTENSIONS = Util.make(new HashMap<>(), map -> {
@@ -45,12 +44,12 @@ public abstract class IdentifiableMultiJsonDataLoader extends SinglePreparationR
     }
 
     @Override
-    protected List<MultiJsonDataContainer> prepare(ResourceManager manager, Profiler profiler) {
+    protected MultiJsonDataContainer prepare(ResourceManager manager, Profiler profiler) {
 
-        List<MultiJsonDataContainer> result = new ArrayList<>();
+        MultiJsonDataContainer result = new MultiJsonDataContainer();
         manager.findResources(directoryName, this::hasValidExtension).keySet().forEach(fileId -> {
 
-            Identifier id = trim(fileId);
+            Identifier id = this.trim(fileId);
             String fileExtension = "." + FilenameUtils.getExtension(fileId.getPath());
 
             JsonFormat jsonFormat = VALID_EXTENSIONS.get(fileExtension);
@@ -59,22 +58,17 @@ public abstract class IdentifiableMultiJsonDataLoader extends SinglePreparationR
                 String packName = resource.getResourcePackName();
                 try (BufferedReader resourceReader = resource.getReader()) {
 
-                    if (jsonFormat == null) {
-                        throw new JsonParseException("The file extension \"" + fileExtension + "\" is not supported!");
-                    }
-
                     GsonReader gsonReader = new GsonReader(JsonReader.create(resourceReader, jsonFormat));
                     JsonElement jsonElement = gson.fromJson(gsonReader, JsonElement.class);
 
-                    MultiJsonDataContainer dataContainer = new MultiJsonDataContainer(packName);
-                    dataContainer.put(id, jsonElement);
-
-                    if (!result.contains(dataContainer)) {
-                        result.add(dataContainer);
-                    } else {
-                        int index = result.indexOf(dataContainer);
-                        result.get(index).put(id, jsonElement);
+                    if (jsonElement == null) {
+                        throw new JsonParseException("JSON cannot be null! Caused by either the file being empty or a syntax error when being parsed by " + gsonReader);
                     }
+
+                    result
+                        .computeIfAbsent(id, k -> new LinkedHashMap<>())
+                        .computeIfAbsent(packName, k -> new LinkedList<>())
+                        .add(jsonElement);
 
                 } catch (Exception e) {
                     String filePath = packName + "/" + resourceType.getDirectory() + "/" + fileId.getNamespace() + "/" + fileId.getPath();
@@ -89,15 +83,15 @@ public abstract class IdentifiableMultiJsonDataLoader extends SinglePreparationR
 
     }
 
-    private Identifier trim(Identifier id) {
-        String path = FilenameUtils.removeExtension(id.getPath()).substring(directoryName.length() + 1);
-        return new Identifier(id.getNamespace(), path);
+    protected Identifier trim(Identifier fileId) {
+        String path = FilenameUtils.removeExtension(fileId.getPath()).substring(directoryName.length() + 1);
+        return new Identifier(fileId.getNamespace(), path);
     }
 
-    private boolean hasValidExtension(Identifier id) {
+    protected boolean hasValidExtension(Identifier fileId) {
         return VALID_EXTENSIONS.keySet()
             .stream()
-            .anyMatch(suffix -> id.getPath().endsWith(suffix));
+            .anyMatch(suffix -> fileId.getPath().endsWith(suffix));
     }
 
 }
