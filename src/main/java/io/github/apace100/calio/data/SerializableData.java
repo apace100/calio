@@ -44,7 +44,7 @@ public class SerializableData {
             try {
 
                 boolean isPresent = instance.get(name) != null;
-                if (field.hasDefault && field.defaultValue == null) {
+                if (field.hasDefault() && field.getDefault(instance) == null) {
                     buffer.writeBoolean(isPresent);
                 }
 
@@ -82,7 +82,7 @@ public class SerializableData {
             try {
 
                 boolean isPresent = true;
-                if (field.hasDefault && field.defaultValue == null) {
+                if (field.hasDefault() && field.getDefault(instance) == null) {
                     isPresent = buffer.readBoolean();
                 }
 
@@ -155,7 +155,7 @@ public class SerializableData {
 
                 Field<?> field = dataFields.get(name);
 
-                if (field.hasDefault && field.defaultValue == null) {
+                if (field.hasDefault() && field.getDefault(this) == null) {
                     return get(name) != null;
                 }
 
