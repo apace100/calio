@@ -9,6 +9,7 @@ import net.minecraft.util.Identifier;
 
 import java.util.*;
 
+@SuppressWarnings("unused")
 public class TagLike<T> {
 
     private final Registry<T> registry;
@@ -51,6 +52,11 @@ public class TagLike<T> {
             .stream()
             .anyMatch(entry::isIn);
 
+    }
+
+    public void clear() {
+        this.tags.clear();
+        this.items.clear();
     }
 
     public void write(PacketByteBuf buf) {
