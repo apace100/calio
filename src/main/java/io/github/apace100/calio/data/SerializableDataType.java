@@ -425,34 +425,48 @@ public class SerializableDataType<T> {
     }
 
     public static <T> SerializableDataType<TagLike<T>> tagLike(Registry<T> registry) {
-        return new SerializableDataType<>(ClassUtil.castClass(TagLike.class),
-                (packetByteBuf, tagLike) -> tagLike.write(packetByteBuf),
-                packetByteBuf -> {
-                    TagLike<T> tagLike = new TagLike<>(registry);
-                    tagLike.read(packetByteBuf);
-                    return tagLike;
-                },
-                jsonElement -> {
-                    TagLike<T> tagLike = new TagLike<>(registry);
-                    if (!jsonElement.isJsonArray()) {
-                        throw new JsonSyntaxException("Expected a JSON array,");
+        return new SerializableDataType<>(
+            ClassUtil.castClass(TagLike.class),
+            (packetByteBuf, tagLike) -> tagLike.write(packetByteBuf),
+            packetByteBuf -> {
+
+                TagLike<T> tagLike = new TagLike<>(registry);
+                tagLike.read(packetByteBuf);
+
+                return tagLike;
+
+            },
+            jsonElement -> {
+
+                if (!(jsonElement instanceof JsonArray jsonArray)) {
+                    throw new JsonSyntaxException("Expected a JSON array.");
+                }
+
+                TagLike<T> tagLike = new TagLike<>(registry);
+                jsonArray.forEach(je -> {
+
+                    String entry = je.getAsString();
+
+                    if (entry.startsWith("#")) {
+                        tagLike.addTag(DynamicIdentifier.of(entry.substring(1)));
+                    } else {
+                        tagLike.add(DynamicIdentifier.of(entry));
                     }
-                    JsonArray jsonArray = jsonElement.getAsJsonArray();
-                    jsonArray.forEach(je -> {
-                        String s = je.getAsString();
-                        if (s.startsWith("#")) {
-                            Identifier id = new Identifier(s.substring(1));
-                            tagLike.addTag(id);
-                        } else {
-                            tagLike.add(new Identifier(s));
-                        }
-                    });
-                    return tagLike;
-                },
-                tagLike -> {
-                    JsonArray jsonArray = new JsonArray();
-                    tagLike.write(jsonArray);
-                    return jsonArray;
+
                 });
+
+                return tagLike;
+
+            },
+            tagLike -> {
+
+                JsonArray jsonArray = new JsonArray();
+                tagLike.write(jsonArray);
+
+                return jsonArray;
+
+            }
+        );
     }
+
 }

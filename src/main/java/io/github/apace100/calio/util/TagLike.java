@@ -7,10 +7,7 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
 
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class TagLike<T> {
 
@@ -38,50 +35,84 @@ public class TagLike<T> {
         items.add(t);
     }
 
+    public void addAll(TagLike<T> otherTagLike) {
+        this.tags.addAll(otherTagLike.tags);
+        this.items.addAll(otherTagLike.items);
+    }
+
     public boolean contains(T t) {
-        if(items.contains(t)) {
+
+        if (items.contains(t)) {
             return true;
         }
+
         RegistryEntry<T> entry = registry.getEntry(t);
-        for(TagKey<T> tagKey : tags) {
-            if(entry.isIn(tagKey)) {
-                return true;
-            }
-        }
-        return false;
+        return tags
+            .stream()
+            .anyMatch(entry::isIn);
+
     }
 
     public void write(PacketByteBuf buf) {
+
         buf.writeVarInt(tags.size());
-        for(TagKey<T> tagKey : tags) {
-            buf.writeString(tagKey.id().toString());
+        for (TagKey<T> tagKey : tags) {
+            buf.writeIdentifier(tagKey.id());
         }
-        buf.writeVarInt(items.size());
-        for(T t : items) {
-            buf.writeString(registry.getId(t).toString());
+
+        List<Identifier> ids = new LinkedList<>();
+        for (T t : items) {
+
+            Identifier id = registry.getId(t);
+
+            if (id != null) {
+                ids.add(id);
+            }
+
         }
+
+        buf.writeVarInt(ids.size());
+        ids.forEach(buf::writeIdentifier);
+
     }
 
     public void read(PacketByteBuf buf) {
+
         tags.clear();
         int count = buf.readVarInt();
-        for(int i = 0; i < count; i++) {
-            tags.add(TagKey.of(registry.getKey(), new Identifier(buf.readString())));
+        for (int i = 0; i < count; i++) {
+            tags.add(TagKey.of(registry.getKey(), buf.readIdentifier()));
         }
-        items.clear();
+
         count = buf.readVarInt();
-        for(int i = 0; i < count; i++) {
-            T t = registry.get(new Identifier(buf.readString()));
-            items.add(t);
+        for (int i = 0; i < count; i++) {
+
+            T t = registry.get(buf.readIdentifier());
+
+            if (t != null) {
+                items.add(t);
+            }
+
         }
+
     }
 
     public void write(JsonArray array) {
+
         for (TagKey<T> tagKey : tags) {
             array.add("#" + tagKey.id().toString());
         }
+
         for(T t : items) {
-            array.add(registry.getId(t).toString());
+
+            Identifier id = registry.getId(t);
+
+            if (id != null) {
+                array.add(id.toString());
+            }
+
         }
+
     }
+
 }
