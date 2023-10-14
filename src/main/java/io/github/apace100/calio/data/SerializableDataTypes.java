@@ -432,25 +432,34 @@ public final class SerializableDataTypes {
         nbtCompound -> NbtOps.INSTANCE.convertTo(JsonOps.INSTANCE, nbtCompound)
     );
 
-    public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(ItemStack.class,
+    public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(
+        ItemStack.class,
         new SerializableData()
             .add("item", SerializableDataTypes.ITEM)
             .add("amount", SerializableDataTypes.INT, 1)
-            .add("tag", NBT, null),
-        (data) ->  {
-            ItemStack stack = new ItemStack((Item)data.get("item"), data.getInt("amount"));
-            if(data.isPresent("tag")) {
-                stack.setNbt(data.get("tag"));
-            }
+            .add("tag", SerializableDataTypes.NBT, null),
+        data -> {
+
+            ItemStack stack = data.<Item>get("item").getDefaultStack();
+
+            stack.setCount(data.get("amount"));
+            data.ifPresent("tag", stack::setNbt);
+
             return stack;
+
         },
-        ((serializableData, itemStack) -> {
+        (serializableData, stack) -> {
+
             SerializableData.Instance data = serializableData.new Instance();
-            data.set("item", itemStack.getItem());
-            data.set("amount", itemStack.getCount());
-            data.set("tag", itemStack.hasNbt() ? itemStack.getNbt() : null);
+
+            data.set("item", stack.getItem());
+            data.set("amount", stack.getCount());
+            data.set("tag", stack.getNbt());
+
             return data;
-        }));
+
+        }
+    );
 
     public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = SerializableDataType.list(ITEM_STACK);
 
