@@ -8,6 +8,9 @@
         "DontOverwriteAttrModsMixin",
         "IngredientAccessor",
         "RegistrySyncMixin",
+        "ShapedRecipeAccessor",
+        "ShapedRecipeMixin",
+        "ShapedRecipeMixin$SerializerMixin",
         "WeightedListEntryAccessor"
     ],
     "client": [

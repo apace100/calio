@@ -5,3 +5,5 @@ accessible method net/minecraft/recipe/Ingredient$StackEntry <init> (Lnet/minecr
 accessible method net/minecraft/recipe/Ingredient$TagEntry <init> (Lnet/minecraft/registry/tag/TagKey;)V
 accessible method net/minecraft/recipe/Ingredient ofEntries (Ljava/util/stream/Stream;)Lnet/minecraft/recipe/Ingredient;
 extendable class net/minecraft/recipe/Ingredient
+accessible class net/minecraft/recipe/ShapedRecipe$Serializer$RawShapedRecipe
+accessible method net/minecraft/recipe/ShapedRecipe$Serializer$RawShapedRecipe <init> (Ljava/lang/String;Lnet/minecraft/recipe/book/CraftingRecipeCategory;Ljava/util/Map;Ljava/util/List;Lnet/minecraft/item/ItemStack;Z)V
