@@ -13,11 +13,11 @@ import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.DynamicIdentifier;
 import io.github.apace100.calio.util.TagLike;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.collection.WeightedList;
 
 import java.util.*;
@@ -212,16 +212,24 @@ public class SerializableDataType<T> {
     }
 
     public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry, String defaultNamespace, boolean showPossibleValues) {
+        return registry(dataClass, registry, defaultNamespace, (reg, id) -> {
+            String possibleValues = showPossibleValues ? " Expected value to be any of " + String.join(", ", reg.getIds().stream().map(Identifier::toString).toList()) : "";
+            return new RuntimeException("Type \"%s\" is not registered in registry \"%s\".%s".formatted(id, registry.getKey().getValue(), possibleValues));
+        });
+    }
+
+    public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry, BiFunction<Registry<T>, Identifier, RuntimeException> exception) {
+        return registry(dataClass, registry, Identifier.DEFAULT_NAMESPACE, exception);
+    }
+
+    public static <T> SerializableDataType<T> registry(Class<T> dataClass, Registry<T> registry, String defaultNamespace, BiFunction<Registry<T>, Identifier, RuntimeException> exception) {
         return wrap(
             dataClass,
             SerializableDataTypes.STRING,
             t -> Objects.requireNonNull(registry.getId(t)).toString(),
             idString -> {
                 Identifier id = DynamicIdentifier.of(idString, defaultNamespace);
-                return registry.getOrEmpty(id).orElseThrow(() -> {
-                    String possibleValues = showPossibleValues ? " Expected value to be any of " + String.join(", ", registry.getIds().stream().map(Identifier::toString).toList()) : "";
-                    return new RuntimeException("Type \"" + id + "\" was not registered in registry \"" + registry.getKey().getValue() + "\"." + possibleValues);
-                });
+                return registry.getOrEmpty(id).orElseThrow(() -> exception.apply(registry, id));
             }
         );
     }
