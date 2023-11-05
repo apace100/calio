@@ -68,6 +68,28 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
 
+    public static final SerializableDataType<Integer> POSITIVE_INT = new SerializableDataType<>(
+        Integer.class,
+        INT::send,
+        INT::receive,
+        jsonElement -> {
+
+            if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isNumber() || !(jsonPrimitive.getAsNumber() instanceof Integer value)) {
+                throw new JsonSyntaxException("Expected an integer.");
+            }
+
+            if (value <= 0) {
+                throw new IllegalArgumentException("Value '%s' must be greater than 0!");
+            }
+
+            return value;
+
+        },
+        INT::write
+    );
+
+    public static final SerializableDataType<List<Integer>> POSITIVE_INTS = SerializableDataType.list(POSITIVE_INT);
+
     public static final SerializableDataType<Boolean> BOOLEAN = new SerializableDataType<>(
         Boolean.class,
         PacketByteBuf::writeBoolean,
@@ -84,6 +106,28 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 
+    public static final SerializableDataType<Float> POSITIVE_FLOAT = new SerializableDataType<>(
+        Float.class,
+        FLOAT::send,
+        FLOAT::receive,
+        jsonElement -> {
+
+            if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isNumber() || !(jsonPrimitive.getAsNumber() instanceof Float value)) {
+                throw new JsonSyntaxException("Expected a float.");
+            }
+
+            if (value <= 0f) {
+                throw new IllegalArgumentException("Value '%s' must be greater than 0!");
+            }
+
+            return value;
+
+        },
+        FLOAT::write
+    );
+
+    public static final SerializableDataType<List<Float>> POSITIVE_FLOATS = SerializableDataType.list(POSITIVE_FLOAT);
+
     public static final SerializableDataType<Double> DOUBLE = new SerializableDataType<>(
         Double.class,
         PacketByteBuf::writeDouble,
@@ -92,6 +136,26 @@ public final class SerializableDataTypes {
         JsonPrimitive::new);
 
     public static final SerializableDataType<List<Double>> DOUBLES = SerializableDataType.list(DOUBLE);
+
+    public static final SerializableDataType<Double> POSITIVE_DOUBLE = new SerializableDataType<>(
+        Double.class,
+        DOUBLE::send,
+        DOUBLE::receive,
+        jsonElement -> {
+
+            if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isNumber() || !(jsonPrimitive.getAsNumber() instanceof Double value)) {
+                throw new JsonSyntaxException("Expected a double.");
+            }
+
+            if (value <= 0d) {
+                throw new IllegalArgumentException("Value '%s' must be greater than 0!");
+            }
+
+            return value;
+
+        },
+        DOUBLE::write
+    );
 
     public static final SerializableDataType<String> STRING = new SerializableDataType<>(
         String.class,
