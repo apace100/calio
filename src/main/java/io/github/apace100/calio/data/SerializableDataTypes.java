@@ -74,12 +74,10 @@ public final class SerializableDataTypes {
         INT::receive,
         jsonElement -> {
 
-            if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isNumber() || !(jsonPrimitive.getAsNumber() instanceof Integer value)) {
-                throw new JsonSyntaxException("Expected an integer.");
-            }
+            int value = INT.read(jsonElement);
 
             if (value <= 0) {
-                throw new IllegalArgumentException("Value '%s' must be greater than 0!");
+                throw new IllegalArgumentException("Expected a value greater than 0! (Current value: %s)".formatted(value));
             }
 
             return value;
@@ -112,12 +110,10 @@ public final class SerializableDataTypes {
         FLOAT::receive,
         jsonElement -> {
 
-            if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isNumber() || !(jsonPrimitive.getAsNumber() instanceof Float value)) {
-                throw new JsonSyntaxException("Expected a float.");
-            }
+            float value = FLOAT.read(jsonElement);
 
             if (value <= 0f) {
-                throw new IllegalArgumentException("Value '%s' must be greater than 0!");
+                throw new IllegalArgumentException("Expected a value greater than 0! (Current value: %s)".formatted(value));
             }
 
             return value;
@@ -143,12 +139,10 @@ public final class SerializableDataTypes {
         DOUBLE::receive,
         jsonElement -> {
 
-            if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isNumber() || !(jsonPrimitive.getAsNumber() instanceof Double value)) {
-                throw new JsonSyntaxException("Expected a double.");
-            }
+            double value = DOUBLE.read(jsonElement);
 
             if (value <= 0d) {
-                throw new IllegalArgumentException("Value '%s' must be greater than 0!");
+                throw new IllegalArgumentException("Expected a value greater than 0! (Current value: %s)".formatted(value));
             }
 
             return value;
