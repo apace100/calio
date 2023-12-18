@@ -68,22 +68,17 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Integer>> INTS = SerializableDataType.list(INT);
 
-    public static final SerializableDataType<Integer> POSITIVE_INT = new SerializableDataType<>(
-        Integer.class,
-        INT::send,
-        INT::receive,
-        jsonElement -> {
+    public static final SerializableDataType<Integer> POSITIVE_INT = SerializableDataType.boundNumber(
+        INT, 1, Integer.MAX_VALUE,
+        value -> (min, max) -> {
 
-            int value = INT.read(jsonElement);
-
-            if (value <= 0) {
-                throw new IllegalArgumentException("Expected a value greater than 0! (Current value: %s)".formatted(value));
+            if (value < min || value > max) {
+                throw new IllegalArgumentException("Expected integer to be greater than 0! (current value: " + value + ")");
             }
 
             return value;
 
-        },
-        INT::write
+        }
     );
 
     public static final SerializableDataType<List<Integer>> POSITIVE_INTS = SerializableDataType.list(POSITIVE_INT);
@@ -104,22 +99,17 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Float>> FLOATS = SerializableDataType.list(FLOAT);
 
-    public static final SerializableDataType<Float> POSITIVE_FLOAT = new SerializableDataType<>(
-        Float.class,
-        FLOAT::send,
-        FLOAT::receive,
-        jsonElement -> {
+    public static final SerializableDataType<Float> POSITIVE_FLOAT = SerializableDataType.boundNumber(
+        FLOAT, 1F, Float.MAX_VALUE,
+        value -> (min, max) -> {
 
-            float value = FLOAT.read(jsonElement);
-
-            if (value <= 0f) {
-                throw new IllegalArgumentException("Expected a value greater than 0! (Current value: %s)".formatted(value));
+            if (value < min || value > max) {
+                throw new IllegalArgumentException("Expected float to be greater than 0! (current value: " + value + ")");
             }
 
             return value;
 
-        },
-        FLOAT::write
+        }
     );
 
     public static final SerializableDataType<List<Float>> POSITIVE_FLOATS = SerializableDataType.list(POSITIVE_FLOAT);
@@ -133,22 +123,17 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Double>> DOUBLES = SerializableDataType.list(DOUBLE);
 
-    public static final SerializableDataType<Double> POSITIVE_DOUBLE = new SerializableDataType<>(
-        Double.class,
-        DOUBLE::send,
-        DOUBLE::receive,
-        jsonElement -> {
+    public static final SerializableDataType<Double> POSITIVE_DOUBLE = SerializableDataType.boundNumber(
+        DOUBLE, 1D, Double.MAX_VALUE,
+        value -> (min, max) -> {
 
-            double value = DOUBLE.read(jsonElement);
-
-            if (value <= 0d) {
-                throw new IllegalArgumentException("Expected a value greater than 0! (Current value: %s)".formatted(value));
+            if (value < min || value > max) {
+                throw new IllegalArgumentException("Expected double to be greater than 0! (current value: " + value + ")");
             }
 
             return value;
 
-        },
-        DOUBLE::write
+        }
     );
 
     public static final SerializableDataType<String> STRING = new SerializableDataType<>(

@@ -22,9 +22,7 @@ import net.minecraft.util.collection.WeightedList;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.function.*;
 
 public class SerializableDataType<T> {
 
@@ -417,6 +415,16 @@ public class SerializableDataType<T> {
                 }
                 return array;
             });
+    }
+
+    public static <T extends Number> SerializableDataType<T> boundNumber(SerializableDataType<T> numberDataType, T min, T max, Function<T, BiFunction<T, T, T>> read) {
+        return new SerializableDataType<>(
+            numberDataType.dataClass,
+            numberDataType.send,
+            numberDataType.receive,
+            jsonElement -> read.apply(numberDataType.read(jsonElement)).apply(min, max),
+            numberDataType.write
+        );
     }
 
     public static <T, U extends ArgumentType<T>> SerializableDataType<ArgumentWrapper<T>> argumentType(U argumentType) {
