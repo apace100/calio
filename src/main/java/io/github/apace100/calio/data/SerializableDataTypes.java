@@ -10,8 +10,12 @@ import com.mojang.serialization.JsonOps;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
+import io.github.apace100.calio.mixin.EntityAttributeModifierAccessor;
 import io.github.apace100.calio.mixin.IngredientAccessor;
-import io.github.apace100.calio.util.*;
+import io.github.apace100.calio.util.ArgumentWrapper;
+import io.github.apace100.calio.util.DynamicIdentifier;
+import io.github.apace100.calio.util.StatusEffectChance;
+import io.github.apace100.calio.util.TagLike;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.render.CameraSubmersionType;
@@ -39,11 +43,14 @@ import net.minecraft.particle.ParticleType;
 import net.minecraft.recipe.Ingredient;
 import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeSerializer;
-import net.minecraft.registry.*;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.stat.Stat;
 import net.minecraft.stat.StatType;
-import net.minecraft.registry.tag.*;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
 import net.minecraft.util.math.Direction;
@@ -268,7 +275,7 @@ public final class SerializableDataTypes {
         ),
         (serializableData, modifier) -> {
             SerializableData.Instance inst = serializableData.new Instance();
-            inst.set("name", modifier.getName());
+            inst.set("name", ((EntityAttributeModifierAccessor) modifier).getName());
             inst.set("value", modifier.getValue());
             inst.set("operation", modifier.getOperation());
             return inst;
@@ -369,8 +376,16 @@ public final class SerializableDataTypes {
         Ingredient.class,
         (buffer, ingredient) -> ingredient.write(buffer),
         Ingredient::fromPacket,
-        json -> Ingredient.DISALLOW_EMPTY_CODEC.parse(JsonOps.INSTANCE, json).resultOrPartial(Calio.LOGGER::error).orElseThrow(() -> new RuntimeException("Failed to read vanilla ingredient json.")),
-        ingredient -> ingredient.toJson(false));
+        json -> Ingredient.DISALLOW_EMPTY_CODEC
+            .decode(JsonOps.INSTANCE, json)
+            .mapError(err -> "Couldn't deserialize vanilla ingredient from JSON: " + err)
+            .getOrThrow(false, err -> {})
+            .getFirst(),
+        ingredient -> Ingredient.DISALLOW_EMPTY_CODEC
+            .encodeStart(JsonOps.INSTANCE, ingredient)
+            .mapError(err -> "Couldn't serialize vanilla ingredient to JSON: " + err)
+            .getOrThrow(false, err -> {})
+    );
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registries.BLOCK);
 
@@ -507,10 +522,11 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = SerializableDataType.list(ITEM_STACK);
 
     public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(Text.class,
-        (buffer, text) -> buffer.writeString(Text.Serializer.toJson(text)),
-        (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
-        Text.Serializer::fromJson,
-        Text.Serializer::toJsonTree);
+        PacketByteBuf::writeText,
+        PacketByteBuf::readUnlimitedText,
+        Text.Serialization::fromJsonTree,
+        Text.Serialization::toJsonTree
+    );
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 
