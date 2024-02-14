@@ -6,9 +6,11 @@
     "mixins": [
         "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
         "DontOverwriteAttrModsMixin",
-        "EntityAttributeModifierAccessor",
         "IngredientAccessor",
         "RegistrySyncMixin",
+        "ShapedRecipeAccessor",
+        "ShapedRecipeMixin",
+        "ShapedRecipeMixin$SerializerMixin",
         "WeightedListEntryAccessor"
     ],
     "client": [
