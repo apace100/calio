@@ -5,12 +5,14 @@
     "compatibilityLevel": "JAVA_16",
     "mixins": [
         "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
+        "DataPackContentsMixin",
         "DontOverwriteAttrModsMixin",
         "IngredientAccessor",
         "RegistrySyncMixin",
         "ShapedRecipeAccessor",
         "ShapedRecipeMixin",
         "ShapedRecipeMixin$SerializerMixin",
+        "TagManagerLoaderMixin",
         "WeightedListEntryAccessor"
     ],
     "client": [

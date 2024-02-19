@@ -3,15 +3,23 @@ package io.github.apace100.calio;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.tag.TagKey;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.TagKey;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.Collection;
+import java.util.Map;
 
 public class Calio implements ModInitializer {
 
     public static final Logger LOGGER = LogManager.getLogger(Calio.class);
+
+	public static final ThreadLocal<DynamicRegistryManager> DYNAMIC_REGISTRIES = new ThreadLocal<>();
+	public static final ThreadLocal<Map<TagKey<?>, Collection<RegistryEntry<?>>>> REGISTRY_TAGS = new ThreadLocal<>();
 
 	@Override
 	public void onInitialize() {

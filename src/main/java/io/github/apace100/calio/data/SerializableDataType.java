@@ -13,8 +13,10 @@ import io.github.apace100.calio.util.ArgumentWrapper;
 import io.github.apace100.calio.util.DynamicIdentifier;
 import io.github.apace100.calio.util.TagLike;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
@@ -22,7 +24,9 @@ import net.minecraft.util.collection.WeightedList;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.*;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class SerializableDataType<T> {
 
@@ -361,17 +365,44 @@ public class SerializableDataType<T> {
             (t) -> base.write(toFunction.apply(t)));
     }
 
-    public static <T> SerializableDataType<TagKey<T>> tag(RegistryKey<? extends Registry<T>> registryKey) {
-        return SerializableDataType.wrap(ClassUtil.castClass(TagKey.class), SerializableDataTypes.IDENTIFIER,
+    public static <T> SerializableDataType<TagKey<T>> tag(RegistryKey<? extends Registry<T>> registryRef) {
+        return wrap(
+            ClassUtil.castClass(TagKey.class),
+            SerializableDataTypes.IDENTIFIER,
             TagKey::id,
-            id -> TagKey.of(registryKey, id));
+            id -> {
+
+                TagKey<T> tagKey = TagKey.of(registryRef, id);
+                Map<TagKey<?>, Collection<RegistryEntry<?>>> registryTags = Calio.REGISTRY_TAGS.get();
+
+                if (registryTags != null && !registryTags.containsKey(tagKey)) {
+                    throw new IllegalArgumentException("Tag \"" + id + "\" for registry \"" + registryRef.getValue() + "\" doesn't exist.");
+                }
+
+                return tagKey;
+
+            }
+        );
     }
 
-    public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryKeyRegistry) {
-        return SerializableDataType.wrap(
+    public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryRef) {
+        return wrap(
             ClassUtil.castClass(RegistryKey.class),
             SerializableDataTypes.IDENTIFIER,
-            RegistryKey::getValue, identifier -> RegistryKey.of(registryKeyRegistry, identifier)
+            RegistryKey::getValue,
+            id -> {
+
+                RegistryKey<T> registryKey = RegistryKey.of(registryRef, id);
+                DynamicRegistryManager dynamicRegistries = Calio.DYNAMIC_REGISTRIES.get();
+
+                Registry<T> registry;
+                if (dynamicRegistries != null && (registry = dynamicRegistries.get(registryRef)) != null && !registry.contains(registryKey)) {
+                    throw new IllegalArgumentException("Type \"" + id + "\" is not registered in registry \"" + registryRef.getValue() + "\".");
+                }
+
+                return registryKey;
+
+            }
         );
     }
 
@@ -443,7 +474,8 @@ public class SerializableDataType<T> {
     public static <T> SerializableDataType<TagLike<T>> tagLike(Registry<T> registry) {
         return new SerializableDataType<>(
             ClassUtil.castClass(TagLike.class),
-            (packetByteBuf, tagLike) -> tagLike.write(packetByteBuf),
+            (packetByteBuf, tagLike) ->
+                tagLike.write(packetByteBuf),
             packetByteBuf -> {
 
                 TagLike<T> tagLike = new TagLike<>(registry);
@@ -452,36 +484,8 @@ public class SerializableDataType<T> {
                 return tagLike;
 
             },
-            jsonElement -> {
-
-                if (!(jsonElement instanceof JsonArray jsonArray)) {
-                    throw new JsonSyntaxException("Expected a JSON array.");
-                }
-
-                TagLike<T> tagLike = new TagLike<>(registry);
-                jsonArray.forEach(je -> {
-
-                    String entry = je.getAsString();
-
-                    if (entry.startsWith("#")) {
-                        tagLike.addTag(DynamicIdentifier.of(entry.substring(1)));
-                    } else {
-                        tagLike.add(DynamicIdentifier.of(entry));
-                    }
-
-                });
-
-                return tagLike;
-
-            },
-            tagLike -> {
-
-                JsonArray jsonArray = new JsonArray();
-                tagLike.write(jsonArray);
-
-                return jsonArray;
-
-            }
+            jsonElement -> TagLike.fromJson(registry, jsonElement),
+            TagLike::toJson
         );
     }
 
