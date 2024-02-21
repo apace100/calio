@@ -484,7 +484,8 @@ public class SerializableDataType<T> {
                 return tagLike;
 
             },
-            jsonElement -> TagLike.fromJson(registry, jsonElement),
+            jsonElement ->
+                TagLike.fromJson(registry, jsonElement),
             TagLike::toJson
         );
     }

@@ -16,10 +16,12 @@ import net.minecraft.util.Identifier;
 
 import java.util.*;
 
+//  TODO: Implement support for optional entries
 @SuppressWarnings("unused")
 public class TagLike<T> {
 
     private final Registry<T> registry;
+
     private final List<TagKey<T>> tags = new LinkedList<>();
     private final Set<T> items = new HashSet<>();
 
@@ -111,7 +113,7 @@ public class TagLike<T> {
 
     }
 
-    private static <T> Either<TagKey<T>, Identifier> singleFromJson(Registry<T> registry, JsonElement jsonElement) {
+    private static <T> Either<TagKey<T>, Identifier> parse(Registry<T> registry, JsonElement jsonElement) {
 
         if (!(jsonElement instanceof JsonPrimitive jsonPrimitive) || !jsonPrimitive.isString()) {
             throw new JsonSyntaxException("Expected a string.");
@@ -157,7 +159,7 @@ public class TagLike<T> {
             for (int i = 0; i < jsonArray.size(); i++) {
 
                 try {
-                    singleFromJson(registry, jsonArray.get(i))
+                    parse(registry, jsonArray.get(i))
                         .ifLeft(tagLike::addTag)
                         .ifRight(tagLike::add);
                 }
@@ -174,10 +176,14 @@ public class TagLike<T> {
 
         }
 
-        else {
-            singleFromJson(registry, jsonElement)
+        else if (jsonElement instanceof JsonPrimitive jsonPrimitive && jsonPrimitive.isString()) {
+            parse(registry, jsonElement)
                 .ifLeft(tagLike::addTag)
                 .ifRight(tagLike::add);
+        }
+
+        else {
+            throw new JsonSyntaxException("Expected a JSON array or a string.");
         }
 
         return tagLike;
