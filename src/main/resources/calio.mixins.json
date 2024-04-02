@@ -7,11 +7,9 @@
         "CustomNonItalicNameMixin$RemoveNonItalicOnRename",
         "DataPackContentsMixin",
         "DontOverwriteAttrModsMixin",
+        "EntityAttributeModifierAccessor",
         "IngredientAccessor",
         "RegistrySyncMixin",
-        "ShapedRecipeAccessor",
-        "ShapedRecipeMixin",
-        "ShapedRecipeMixin$SerializerMixin",
         "TagManagerLoaderMixin",
         "WeightedListEntryAccessor"
     ],

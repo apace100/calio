@@ -3,102 +3,21 @@ package io.github.apace100.calio;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import io.github.apace100.calio.access.ExtraShapedRecipeData;
-import io.github.apace100.calio.mixin.ShapedRecipeAccessor;
+import io.github.apace100.calio.mixin.EntityAttributeModifierAccessor;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.ShapedRecipe;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.JsonHelper;
-import net.minecraft.util.collection.DefaultedList;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Function;
 
 public class SerializationHelper {
-
-    public static Codec<ShapedRecipe> SHAPED_RECIPE_CODEC = ShapedRecipe.Serializer.RawShapedRecipe.CODEC.flatXmap(
-        rawShapedRecipe -> {
-
-            String[] unpaddedPattern = ShapedRecipeAccessor.callRemovePadding(rawShapedRecipe.pattern());
-
-            int width = unpaddedPattern[0].length();
-            int height = unpaddedPattern.length;
-
-            DefaultedList<Ingredient> ingredients = DefaultedList.ofSize(width * height, Ingredient.EMPTY);
-            Set<String> patternKeys = new HashSet<>(rawShapedRecipe.key().keySet());
-
-            for (int sliceIndex = 0; sliceIndex < unpaddedPattern.length; ++sliceIndex) {
-
-                String patternSlice = unpaddedPattern[sliceIndex];
-
-                for (int keyIndex = 0; keyIndex < patternSlice.length(); ++keyIndex) {
-
-                    String patternKey = patternSlice.substring(keyIndex, keyIndex + 1);
-                    Ingredient ingredient = patternKey.equals(" ") ? Ingredient.EMPTY : rawShapedRecipe.key().get(patternKey);
-
-                    if (ingredient == null) {
-                        return DataResult.error(() -> "Pattern references symbol '" + patternKey + "' but it's not defined in the key!");
-                    }
-
-                    patternKeys.remove(patternKey);
-                    ingredients.set(keyIndex + width * sliceIndex, ingredient);
-
-                }
-
-            }
-
-            if (!patternKeys.isEmpty()) {
-                return DataResult.error(() -> "Key defines symbols that aren't used in pattern: " + patternKeys);
-            }
-
-            ShapedRecipe shapedRecipe = new ShapedRecipe(
-                rawShapedRecipe.group(),
-                rawShapedRecipe.category(),
-                width,
-                height,
-                ingredients,
-                rawShapedRecipe.result(),
-                rawShapedRecipe.showNotification()
-            );
-
-            if (shapedRecipe instanceof ExtraShapedRecipeData extraShapedRecipeData) {
-
-                extraShapedRecipeData.calio$setKeyMapping(rawShapedRecipe.key());
-                extraShapedRecipeData.calio$setPattern(rawShapedRecipe.pattern());
-
-                extraShapedRecipeData.calio$setResult(rawShapedRecipe.result());
-
-            }
-
-            return DataResult.success(shapedRecipe);
-
-        },
-        shapedRecipe -> {
-
-            if (!(shapedRecipe instanceof ExtraShapedRecipeData extraShapedRecipeData)) {
-                return DataResult.error(() -> "Cannot serialize ShapedRecipe with missing key, pattern and result data.");
-            }
-
-            ShapedRecipe.Serializer.RawShapedRecipe rawShapedRecipe = new ShapedRecipe.Serializer.RawShapedRecipe(
-                shapedRecipe.getGroup(),
-                shapedRecipe.getCategory(),
-                extraShapedRecipeData.calio$getKeyMapping(),
-                extraShapedRecipeData.calio$getPattern(),
-                extraShapedRecipeData.calio$getResult(),
-                shapedRecipe.showNotification()
-            );
-
-            return DataResult.success(rawShapedRecipe);
-
-        }
-    );
 
     // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
     @Deprecated
@@ -125,7 +44,7 @@ public class SerializationHelper {
     // Use SerializableDataTypes.ATTRIBUTE_MODIFIER instead
     @Deprecated
     public static void writeAttributeModifier(PacketByteBuf buf, EntityAttributeModifier modifier) {
-        buf.writeString(modifier.getName());
+        buf.writeString(((EntityAttributeModifierAccessor) modifier).getName());
         buf.writeDouble(modifier.getValue());
         buf.writeInt(modifier.getOperation().getId());
     }

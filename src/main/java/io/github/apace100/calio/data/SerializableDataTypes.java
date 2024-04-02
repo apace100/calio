@@ -10,6 +10,7 @@ import com.mojang.serialization.JsonOps;
 import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.ClassUtil;
 import io.github.apace100.calio.SerializationHelper;
+import io.github.apace100.calio.mixin.EntityAttributeModifierAccessor;
 import io.github.apace100.calio.mixin.IngredientAccessor;
 import io.github.apace100.calio.util.*;
 import net.minecraft.block.Block;
@@ -268,7 +269,7 @@ public final class SerializableDataTypes {
         ),
         (serializableData, modifier) -> {
             SerializableData.Instance inst = serializableData.new Instance();
-            inst.set("name", modifier.getName());
+            inst.set("name", ((EntityAttributeModifierAccessor) modifier).getName());
             inst.set("value", modifier.getValue());
             inst.set("operation", modifier.getOperation());
             return inst;
@@ -367,10 +368,19 @@ public final class SerializableDataTypes {
     // The regular vanilla Minecraft ingredient.
     public static final SerializableDataType<Ingredient> VANILLA_INGREDIENT = new SerializableDataType<>(
         Ingredient.class,
-        (buffer, ingredient) -> ingredient.write(buffer),
+        (buf, ingredient) ->
+            ingredient.write(buf),
         Ingredient::fromPacket,
-        json -> Ingredient.DISALLOW_EMPTY_CODEC.parse(JsonOps.INSTANCE, json).resultOrPartial(Calio.LOGGER::error).orElseThrow(() -> new RuntimeException("Failed to read vanilla ingredient json.")),
-        ingredient -> ingredient.toJson(false));
+        jsonElement -> Ingredient.DISALLOW_EMPTY_CODEC
+            .decode(JsonOps.INSTANCE, jsonElement)
+            .mapError(err -> "Couldn't deserialize ingredient from JSON: " + err)
+            .getOrThrow(false, err -> {})
+            .getFirst(),
+        ingredient -> Ingredient.DISALLOW_EMPTY_CODEC
+            .encodeStart(JsonOps.INSTANCE, ingredient)
+            .mapError(err -> "Couldn't serialize ingredient to JSON: " + err)
+            .getOrThrow(false, err -> {})
+    );
 
     public static final SerializableDataType<Block> BLOCK = SerializableDataType.registry(Block.class, Registries.BLOCK);
 
@@ -506,11 +516,13 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = SerializableDataType.list(ITEM_STACK);
 
-    public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(Text.class,
-        (buffer, text) -> buffer.writeString(Text.Serializer.toJson(text)),
-        (buffer) -> Text.Serializer.fromJson(buffer.readString(32767)),
-        Text.Serializer::fromJson,
-        Text.Serializer::toJsonTree);
+    public static final SerializableDataType<Text> TEXT = new SerializableDataType<>(
+        Text.class,
+        PacketByteBuf::writeText,
+        PacketByteBuf::readUnlimitedText,
+        Text.Serialization::fromJsonTree,
+        Text.Serialization::toJsonTree
+    );
 
     public static final SerializableDataType<List<Text>> TEXTS = SerializableDataType.list(TEXT);
 

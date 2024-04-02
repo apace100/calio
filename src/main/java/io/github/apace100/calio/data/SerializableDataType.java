@@ -24,9 +24,7 @@ import net.minecraft.util.collection.WeightedList;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.function.*;
 
 public class SerializableDataType<T> {
 
