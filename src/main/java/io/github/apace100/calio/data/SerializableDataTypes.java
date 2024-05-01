@@ -251,8 +251,13 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<Enchantment> ENCHANTMENT = SerializableDataType.registry(Enchantment.class, Registries.ENCHANTMENT);
 
-    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(RegistryKeys.WORLD);
+    private static final Set<RegistryKey<World>> VANILLA_DIMENSIONS = Set.of(
+        World.OVERWORLD,
+        World.NETHER,
+        World.END
+    );
 
+    public static SerializableDataType<RegistryKey<World>> DIMENSION = SerializableDataType.registryKey(RegistryKeys.WORLD, VANILLA_DIMENSIONS);
 
     public static final SerializableDataType<EntityAttribute> ATTRIBUTE = SerializableDataType.registry(EntityAttribute.class, Registries.ATTRIBUTE);
 

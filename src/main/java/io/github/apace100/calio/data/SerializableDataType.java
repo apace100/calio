@@ -384,6 +384,10 @@ public class SerializableDataType<T> {
     }
 
     public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryRef) {
+        return registryKey(registryRef, List.of());
+    }
+
+    public static <T> SerializableDataType<RegistryKey<T>> registryKey(RegistryKey<Registry<T>> registryRef, Collection<RegistryKey<T>> exemptions) {
         return wrap(
             ClassUtil.castClass(RegistryKey.class),
             SerializableDataTypes.IDENTIFIER,
@@ -393,9 +397,12 @@ public class SerializableDataType<T> {
                 RegistryKey<T> registryKey = RegistryKey.of(registryRef, id);
                 DynamicRegistryManager dynamicRegistries = Calio.DYNAMIC_REGISTRIES.get();
 
-                Registry<T> registry;
-                if (dynamicRegistries != null && (registry = dynamicRegistries.get(registryRef)) != null && !registry.contains(registryKey)) {
-                    throw new IllegalArgumentException("Type \"" + id + "\" is not registered in registry \"" + registryRef.getValue() + "\".");
+                if (dynamicRegistries == null || exemptions.contains(registryKey)) {
+                    return registryKey;
+                }
+
+                if (!dynamicRegistries.get(registryRef).contains(registryKey)) {
+                    throw new IllegalArgumentException("Type \"" + id + "\" is not registered in registry \"" + registryRef.getValue() + "\"");
                 }
 
                 return registryKey;
@@ -464,7 +471,7 @@ public class SerializableDataType<T> {
                     T t = argumentType.parse(new StringReader(str));
                     return new ArgumentWrapper<>(t, str);
                 } catch (CommandSyntaxException e) {
-                    throw new RuntimeException("Wrong syntax in argument type data", e);
+                    throw new RuntimeException(e.getMessage());
                 }
             });
     }
