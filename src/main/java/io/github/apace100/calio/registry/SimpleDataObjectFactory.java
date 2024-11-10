@@ -5,6 +5,7 @@ import io.github.apace100.calio.data.SerializableData;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+@Deprecated(forRemoval = true)
 public class SimpleDataObjectFactory<T> implements DataObjectFactory<T> {
 
 	private final SerializableData serializableData;

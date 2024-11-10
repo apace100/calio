@@ -1,15 +1,20 @@
 package io.github.apace100.calio.util;
 
-public record ArgumentWrapper<T>(T argument, String input) {
+public record ArgumentWrapper<T>(T parsedValue, String input) {
 
     @Deprecated(forRemoval = true)
     public T get() {
-        return argument;
+        return parsedValue;
     }
 
     @Deprecated(forRemoval = true)
     public String rawArgument() {
         return input;
+    }
+
+    @Deprecated(forRemoval = true)
+    public T argument() {
+        return parsedValue();
     }
 
 }

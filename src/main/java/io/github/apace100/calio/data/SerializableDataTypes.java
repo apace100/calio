@@ -8,11 +8,12 @@ import com.mojang.serialization.*;
 import com.mojang.serialization.codecs.PrimitiveCodec;
 import io.github.apace100.calio.codec.CalioPacketCodecs;
 import io.github.apace100.calio.mixin.IngredientAccessor;
-import io.github.apace100.calio.mixin.ItemStackAccessor;
 import io.github.apace100.calio.mixin.TagEntryAccessor;
-import io.github.apace100.calio.registry.DataObjectFactory;
-import io.github.apace100.calio.registry.SimpleDataObjectFactory;
-import io.github.apace100.calio.util.*;
+import io.github.apace100.calio.registry.DataObjectFactories;
+import io.github.apace100.calio.util.ArgumentWrapper;
+import io.github.apace100.calio.util.DynamicIdentifier;
+import io.github.apace100.calio.util.StatusEffectChance;
+import io.github.apace100.calio.util.TagLike;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.fabricmc.fabric.api.recipe.v1.ingredient.CustomIngredient;
 import net.fabricmc.fabric.impl.recipe.ingredient.CustomIngredientImpl;
@@ -52,13 +53,18 @@ import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.recipe.RecipeSerializer;
 import net.minecraft.registry.*;
 import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.EntityTypeTags;
+import net.minecraft.registry.tag.TagEntry;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.stat.Stat;
 import net.minecraft.stat.StatType;
-import net.minecraft.registry.tag.*;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
-import net.minecraft.util.*;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.UseAction;
 import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -223,23 +229,7 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<EntityAttributeModifier.Operation> MODIFIER_OPERATION = SerializableDataType.enumValue(EntityAttributeModifier.Operation.class);
 
-	public static final DataObjectFactory<EntityAttributeModifier> ATTRIBUTE_MODIFIER_OBJ_FACTORY = new SimpleDataObjectFactory<>(
-		new SerializableData()
-			.add("id", IDENTIFIER)
-			.add("amount", DOUBLE)
-			.add("operation", MODIFIER_OPERATION),
-		data -> new EntityAttributeModifier(
-			data.get("id"),
-			data.get("amount"),
-			data.get("operation")
-		),
-		(entityAttributeModifier, serializableData) -> serializableData.instance()
-			.set("id", entityAttributeModifier.id())
-			.set("amount", entityAttributeModifier.value())
-			.set("operation", entityAttributeModifier.operation())
-	);
-
-	public static final CompoundSerializableDataType<EntityAttributeModifier> ATTRIBUTE_MODIFIER = SerializableDataType.compound(ATTRIBUTE_MODIFIER_OBJ_FACTORY);
+	public static final SerializableDataType<EntityAttributeModifier> ATTRIBUTE_MODIFIER = SerializableDataType.lazy(() -> SerializableDataType.compound(DataObjectFactories.ATTRIBUTE_MODIFIER));
 
     public static final SerializableDataType<List<EntityAttributeModifier>> ATTRIBUTE_MODIFIERS = ATTRIBUTE_MODIFIER.list();
 
@@ -718,38 +708,9 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<ComponentChanges> COMPONENT_CHANGES = SerializableDataType.of(ComponentChanges.CODEC, ComponentChanges.PACKET_CODEC);
 
-	public static final DataObjectFactory<ItemStack> UNCOUNTED_ITEM_STACK_OBJ_FACTORY = new SimpleDataObjectFactory<>(
-		new SerializableData()
-			.add("id", ITEM_ENTRY)
-			.add("components", COMPONENT_CHANGES, ComponentChanges.EMPTY),
-		data -> new ItemStack(
-			data.get("id"), 1,
-			data.get("components")
-		),
-		(stack, serializableData) -> serializableData.instance()
-			.set("id", stack.getRegistryEntry())
-			.set("components", stack.getComponentChanges())
-	);
+	public static final SerializableDataType<ItemStack> UNCOUNTED_ITEM_STACK = SerializableDataType.lazy(() -> SerializableDataType.compound(DataObjectFactories.UNCOUNTED_ITEM_STACK));
 
-	public static final CompoundSerializableDataType<ItemStack> UNCOUNTED_ITEM_STACK = SerializableDataType.compound(UNCOUNTED_ITEM_STACK_OBJ_FACTORY);
-
-	public static final DataObjectFactory<ItemStack> ITEM_STACK_OBJ_FACTORY = new SimpleDataObjectFactory<>(
-		UNCOUNTED_ITEM_STACK_OBJ_FACTORY.getSerializableData().copy()
-			.add("count", SerializableDataType.boundNumber(INT, 1, 99), 1),
-		data -> {
-
-			ItemStack stack = UNCOUNTED_ITEM_STACK_OBJ_FACTORY.fromData(data);
-			stack.setCount(data.getInt("count"));
-
-			return stack;
-
-		},
-		(stack, serializableData) -> UNCOUNTED_ITEM_STACK_OBJ_FACTORY
-			.toData(stack, serializableData)
-			.set("count", ((ItemStackAccessor) (Object) stack).getCountOverride())
-	);
-
-    public static final CompoundSerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.compound(ITEM_STACK_OBJ_FACTORY);
+	public static final SerializableDataType<ItemStack> ITEM_STACK = SerializableDataType.lazy(() -> SerializableDataType.compound(DataObjectFactories.ITEM_STACK));
 
     public static final SerializableDataType<List<ItemStack>> ITEM_STACKS = ITEM_STACK.list();
 

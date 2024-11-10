@@ -14,7 +14,9 @@ import net.minecraft.registry.RegistryOps;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -85,7 +87,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
                 }
 
                 catch (DataException de) {
-                    throw de.prepend(field.path());
+                    throw de.prepend(field.name());
                 }
 
                 catch (NoSuchFieldException nsfe) {
@@ -93,7 +95,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
                 }
 
                 catch (Exception e) {
-                    throw new DataException(DataException.Phase.READING, field.path(), e);
+                    throw new DataException(DataException.Phase.READING, field.name(), e);
                 }
 
             });
@@ -133,11 +135,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
                 }
 
                 catch (DataException de) {
-                    throw de.prepend(field.path());
+                    throw de.prepend(field.name());
                 }
 
                 catch (Exception e) {
-                    throw new DataException(DataException.Phase.WRITING, field.path(), e);
+                    throw new DataException(DataException.Phase.WRITING, field.name(), e);
                 }
 
             });
@@ -190,11 +192,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
             }
 
             catch (DataException de) {
-                throw de.prepend(field.path());
+                throw de.prepend(field.name());
             }
 
             catch (Exception e) {
-                throw new DataException(DataException.Phase.RECEIVING, field.path(), e);
+                throw new DataException(DataException.Phase.RECEIVING, field.name(), e);
             }
 
         });
@@ -246,11 +248,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
             }
 
             catch (DataException de) {
-                throw de.prepend(field.path());
+                throw de.prepend(field.name());
             }
 
             catch (Exception e) {
-                throw new DataException(DataException.Phase.SENDING, field.path(), e);
+                throw new DataException(DataException.Phase.SENDING, field.name(), e);
             }
 
         });
@@ -298,15 +300,15 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
     }
 
     public <T> SerializableData add(String name, @NotNull SerializableDataType<T> dataType, T defaultValue) {
-        return addField(name, dataType.field(name, Suppliers.memoize(() -> defaultValue)));
+        return addField(name, dataType.defaultedField(name, () -> defaultValue));
     }
 
     public <T> SerializableData addSupplied(String name, @NotNull SerializableDataType<T> dataType, @NotNull Supplier<T> defaultSupplier) {
-        return addField(name, dataType.field(name, defaultSupplier));
+        return addField(name, dataType.defaultedField(name, defaultSupplier));
     }
 
     public <T> SerializableData addFunctionedDefault(String name, @NotNull SerializableDataType<T> dataType, @NotNull Function<Instance, T> defaultFunction) {
-        return addField(name, dataType.functionedField(name, defaultFunction));
+        return addField(name, dataType.functionedDefaultField(name, defaultFunction));
     }
 
 	protected <T> SerializableData addField(String name, Field<T> field) {
@@ -370,62 +372,33 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
             SerializableData.this.getFieldNames().forEach(name -> map.putIfAbsent(name, null));
         }
 
-        @Override
+        @SuppressWarnings("unchecked")
+		@Override
         public void validate() throws Exception {
 
-            getFields().forEach((name, field) -> {
+            for (Map.Entry<String, Field<?>> fieldEntry : getFields().entrySet()) {
 
-                if (!map.containsKey(name)) {
-                    return;
-                }
+                String fieldName = fieldEntry.getKey();
+                Field<Object> field = (Field<Object>) fieldEntry.getValue();
 
-                try {
+                Object data = map.get(fieldName);
+                if (data != null) {
 
-                    switch (map.get(name)) {
-                        case List<?> list -> {
+                    try {
+                        field.dataType().validateValue(data);
+                    }
 
-                            int index = 0;
-                            for (Object element : list) {
+                    catch (DataException de) {
+                        throw de.prepend(field.name());
+                    }
 
-                                try {
-
-                                    if (element instanceof Validatable validatable) {
-                                        validatable.validate();
-                                    }
-
-                                    index++;
-
-                                }
-
-                                catch (DataException de) {
-                                    throw de.prependArray(index);
-                                }
-
-                                catch (Exception e) {
-                                    throw new DataException(DataException.Phase.READING, index, e);
-                                }
-
-                            }
-
-                        }
-                        case Validatable validatable ->
-                            validatable.validate();
-                        case null, default -> {
-
-                        }
+                    catch (Exception e) {
+                        throw new DataException(DataException.Phase.READING, field.name(), e);
                     }
 
                 }
 
-                catch (DataException de) {
-                    throw de.prepend(field.path());
-                }
-
-                catch (Exception e) {
-                    throw new DataException(DataException.Phase.READING, field.path(), e);
-                }
-
-            });
+            }
 
         }
 
@@ -437,10 +410,12 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
             if (fields.containsKey(name)) {
 
-                Field<?> field = fields.get(name);
+				//noinspection unchecked
+				Field<Object> field = (Field<Object>) fields.get(name);
+                Object value = map.get(name);
 
                 if (field.hasDefault() && field.getDefault(this) == null) {
-                    return get(name) != null;
+                    return value != null;
                 }
 
             }
@@ -465,14 +440,19 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
         @SuppressWarnings("unchecked")
         public <T> T get(String name) {
 
-            if (!map.containsKey(name)) {
-                throw new RuntimeException("Tried to get field \"" + name + "\" from data " + this + ", which did not exist.");
-            }
-
-            else {
+            if (map.containsKey(name)) {
                 return (T) map.get(name);
             }
 
+            else {
+                throw new IllegalStateException("Tried to get field \"" + name + "\" from data " + this + ", which did not exist!");
+            }
+
+        }
+
+        @SuppressWarnings("unchecked")
+		public <T> Optional<T> getOptional(String name) {
+            return Optional.ofNullable((T) map.get(name));
         }
 
         public <T> T getOrElse(String name, T defaultValue) {
@@ -544,7 +524,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
     public interface Field<E> {
 
-        String path();
+        String name();
 
         SerializableDataType<E> dataType();
 
@@ -568,14 +548,13 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
         boolean hasDefault();
 
-
     }
 
-    public record FieldImpl<E>(String path, SerializableDataType<E> dataType) implements Field<E> {
+    public record FieldImpl<E>(String name, SerializableDataType<E> dataType) implements Field<E> {
 
         @Override
         public E getDefault(Instance data) {
-            throw new IllegalStateException("Tried getting default value of field \"" + path + "\", which doesn't and cannot have any!");
+            throw new IllegalStateException("Tried getting default value of field \"" + name + "\", which doesn't and cannot have any!");
         }
 
         @Override
@@ -585,21 +564,7 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
     }
 
-    public record FunctionedFieldImpl<E>(String path, SerializableDataType<E> dataType, Function<Instance, E> defaultFunction) implements Field<E> {
-
-        @Override
-        public E getDefault(Instance data) {
-            return defaultFunction().apply(data);
-        }
-
-        @Override
-        public boolean hasDefault() {
-            return true;
-        }
-
-    }
-
-    public record OptionalFieldImpl<E>(String path, SerializableDataType<E> dataType, Supplier<E> defaultSupplier) implements Field<E> {
+    public record DefaultedFieldImpl<E>(String name, SerializableDataType<E> dataType, Supplier<E> defaultSupplier) implements Field<E> {
 
         @Override
         public E getDefault(Instance data) {
@@ -613,11 +578,25 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
     }
 
+    public record FunctionedDefaultFieldImpl<E>(String name, SerializableDataType<E> dataType, Function<Instance, E> defaultFunction) implements Field<E> {
+
+        @Override
+        public E getDefault(Instance data) {
+            return defaultFunction().apply(data);
+        }
+
+        @Override
+        public boolean hasDefault() {
+            return true;
+        }
+
+    }
+
     public record DelegateFieldImpl<E>(Supplier<Field<E>> delegate) implements Field<E> {
 
         @Override
-        public String path() {
-            return delegate().get().path();
+        public String name() {
+            return delegate().get().name();
         }
 
         @Override
