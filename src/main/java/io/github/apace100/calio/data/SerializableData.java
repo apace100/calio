@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.serialization.*;
+import io.github.apace100.calio.Calio;
 import io.github.apace100.calio.util.Validatable;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -66,22 +67,32 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
         try {
 
             Instance data = instance();
-            Map<String, Field<?>> defaultedFields = new Object2ObjectLinkedOpenHashMap<>();
+            Map<String, Field<?>> unknownDefaultedFields = new Object2ObjectLinkedOpenHashMap<>();
 
-            getFields().forEach((fieldName, field) -> {
+            Map<String, DefaultedFieldImpl<?>> defaultedFields = new Object2ObjectLinkedOpenHashMap<>();
+            Map<String, FunctionedDefaultFieldImpl<?>> functionedDefaultFields = new Object2ObjectLinkedOpenHashMap<>();
+
+            getFields().forEach((name, field) -> {
 
                 try {
 
-                    if (mapInput.get(fieldName) != null) {
-                        data.set(fieldName, field.read(ops, mapInput.get(fieldName)).getOrThrow());
+                    if (mapInput.get(name) != null) {
+                        data.set(name, field.read(ops, mapInput.get(name)).getOrThrow());
                     }
 
                     else if (field.hasDefault()) {
-                        defaultedFields.put(fieldName, field);
+                        switch (field) {
+                            case DefaultedFieldImpl<?> defaultedField ->
+                                defaultedFields.put(name, defaultedField);
+                            case FunctionedDefaultFieldImpl<?> functionedDefaultField ->
+                                functionedDefaultFields.put(name, functionedDefaultField);
+                            default ->
+                                unknownDefaultedFields.put(name, field);
+                        }
                     }
 
                     else {
-                        throw new NoSuchFieldException("Required field \"" + fieldName + "\" is missing!");
+                        Calio.createMissingRequiredFieldError(name).getOrThrow(NoSuchFieldException::new);
                     }
 
                 }
@@ -100,7 +111,11 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
             });
 
-            defaultedFields.forEach((fieldName, field) -> data.set(fieldName, field.getDefault(data)));
+            unknownDefaultedFields.forEach((name, field) -> data.set(name, field.getDefault(data)));
+
+            defaultedFields.forEach((name, defaultedField) -> data.set(name, defaultedField.getDefault(data)));
+            functionedDefaultFields.forEach((name, functionedDefaultField) -> data.set(name, functionedDefaultField.getDefault(data)));
+
             return DataResult.success(data).flatMap(validator);
 
         }
@@ -408,19 +423,17 @@ public class SerializableData extends MapCodec<SerializableData.Instance> {
 
         public boolean isPresent(String name) {
 
-            if (fields.containsKey(name)) {
+			//noinspection unchecked
+			Field<Object> field = (Field<Object>) fields.get(name);
+            Object value = map.get(name);
 
-				//noinspection unchecked
-				Field<Object> field = (Field<Object>) fields.get(name);
-                Object value = map.get(name);
-
-                if (field.hasDefault() && field.getDefault(this) == null) {
-                    return value != null;
-                }
-
+            if (value == null && field != null && field.hasDefault() && field.getDefault(this) == null) {
+                return false;
             }
 
-            return map.get(name) != null;
+            else {
+                return value != null;
+            }
 
         }
 

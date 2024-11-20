@@ -195,7 +195,7 @@ public class SerializableDataType<T> {
     }
 
     public SerializableData.Field<T> defaultedField(String name, Supplier<T> defaultSupplier) {
-        return new SerializableData.DefaultedFieldImpl<>(name, setRoot(false), Suppliers.memoize(defaultSupplier::get));
+        return new SerializableData.DefaultedFieldImpl<>(name, setRoot(false), defaultSupplier);
     }
 
     public SerializableData.Field<T> functionedDefaultField(String name, Function<SerializableData.Instance, T> defaultFunction) {
