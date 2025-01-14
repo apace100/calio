@@ -85,7 +85,9 @@ public final class SerializableDataTypes {
 
 	public static final SerializableDataType<List<Integer>> INTS = INT.list();
 
-    public static final SerializableDataType<Integer> POSITIVE_INT = SerializableDataType.boundNumber(INT, 1, Integer.MAX_VALUE);
+    public static final SerializableDataType<Integer> POSITIVE_INT = INT.validate(value -> value > 0
+		? DataResult.success(value)
+		: createNotPositiveError(value));
 
     public static final SerializableDataType<List<Integer>> POSITIVE_INTS = POSITIVE_INT.list();
 
@@ -99,7 +101,9 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Float>> FLOATS = FLOAT.list();
 
-    public static final SerializableDataType<Float> POSITIVE_FLOAT = SerializableDataType.boundNumber(FLOAT, 1F, Float.MAX_VALUE);
+    public static final SerializableDataType<Float> POSITIVE_FLOAT = FLOAT.validate(value -> Math.signum(value) == 1.0F
+		? DataResult.success(value)
+		: createNotPositiveError(value));
 
     public static final SerializableDataType<List<Float>> POSITIVE_FLOATS = POSITIVE_FLOAT.list();
 
@@ -111,7 +115,9 @@ public final class SerializableDataTypes {
 
     public static final SerializableDataType<List<Double>> DOUBLES = DOUBLE.list();
 
-    public static final SerializableDataType<Double> POSITIVE_DOUBLE = SerializableDataType.boundNumber(DOUBLE, 1D, Double.MAX_VALUE);
+    public static final SerializableDataType<Double> POSITIVE_DOUBLE = DOUBLE.validate(value -> Math.signum(value) == 1.0D
+		? DataResult.success(value)
+		: createNotPositiveError(value));
 
     public static final SerializableDataType<List<Double>> POSITIVE_DOUBLES = POSITIVE_DOUBLE.list();
 
@@ -1023,6 +1029,10 @@ public final class SerializableDataTypes {
     public static final SerializableDataType<RegistryKey<LootFunction>> ITEM_MODIFIER = SerializableDataType.registryKey(RegistryKeys.ITEM_MODIFIER);
 
     public static final SerializableDataType<RegistryKey<LootCondition>> PREDICATE = SerializableDataType.registryKey(RegistryKeys.PREDICATE);
+
+	private static <N extends Number> DataResult<N> createNotPositiveError(N number) {
+		return DataResult.error(() -> "Expected value to be greater than 0! (current value: " + number + ")");
+	}
 
     public static void init() {
 
