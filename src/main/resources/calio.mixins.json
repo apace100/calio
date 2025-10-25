@@ -17,7 +17,8 @@
     "CustomNonItalicNameMixin$ModifyItalicDisplayHud",
     "CustomNonItalicNameMixin$ModifyItalicDisplayItem",
     "HandledScreenFocusedSlotAccessor",
-    "integration.connector.CustomNonItalicNameMixin$ModifyItalicDisplayHud"
+    "integration.connector.CustomNonItalicNameMixin$ModifyItalicDisplayHud",
+    "integration.connector.TitleScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
